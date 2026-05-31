@@ -40,6 +40,11 @@ The installers prefer pinned wheels from `wheels/` when present. This keeps the
 repo usable as a one-stop side-project package while leaving `cadis` and
 `cadis-map-render` as independent upstream projects.
 
+Vendored wheels are pinned in `requirements.lock.txt`:
+
+- `cadis==0.8.161`
+- `cadis-map-render==0.3.26`
+
 ## Dataset
 
 The default CADIS map dataset catalog root is:

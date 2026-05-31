@@ -1,0 +1,8 @@
+# Pinned local wheels vendored for one-stop TravelSpark installs.
+# Install scripts prefer wheels/ before installing TravelSpark itself.
+
+cadis==0.8.161
+cadis-0.8.161-py3-none-any.whl sha256=2973aa9a3ce6a63cf0c2f1101bc223c18d5b405877a5d7344ad52a4acabc7619
+
+cadis-map-render==0.3.26
+cadis_map_render-0.3.26-py3-none-any.whl sha256=2ed459754b410e487da73521ac8a29ddc13096d9f6f6e123abe9ff9c4ea23cc6
