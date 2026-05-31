@@ -21,6 +21,9 @@ cadis = [
 [project.scripts]
 travelspark = "travelspark.cli:main"
 
+[tool.setuptools.package-dir]
+"" = "src"
+
 [tool.setuptools.packages.find]
 where = ["src"]
 
