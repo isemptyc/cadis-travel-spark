@@ -4,7 +4,7 @@ import argparse
 import json
 from pathlib import Path
 
-from .animation import render_gif
+from .animation import render_gif, render_still
 from .engine import DEFAULT_MAP_DATASET_CATALOG_ROOT, CadisMapRenderEngine, scene_bounds, scene_country_iso
 from .exif import export_points_json, extract_photo_points
 from .progress import Progress
@@ -13,12 +13,14 @@ from .style import load_cadis_style_profile, load_style
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Render EXIF GPS travel traces as an animated map GIF.")
+    parser = argparse.ArgumentParser(description="Render EXIF GPS travel traces as a semantic travel presentation.")
     parser.add_argument("photos_path", type=Path, help="Folder containing photos.")
     parser.add_argument("--scene-id", required=True, help="CADIS map scene id, e.g. tw, world_8192, lon_env_europe.")
     parser.add_argument("--map-style", default="spark-night", help="Map style id, e.g. spark-night or puzzle-pale.")
-    parser.add_argument("--output", type=Path, default=Path("travel.gif"), help="Output GIF path.")
-    parser.add_argument("--mode", choices=["timeline", "cluster", "constellation"], default="timeline")
+    parser.add_argument("--output", type=Path, default=Path("travel.jpg"), help="Output path. .jpg/.png creates one frame; .gif creates an animated GIF when storyboard is animated.")
+    parser.add_argument("--storyboard", choices=["all-points", "timeline", "cluster", "constellation"], default="all-points")
+    parser.add_argument("--mode", choices=["timeline", "cluster", "constellation"], default=None, help="Deprecated alias for --storyboard.")
+    parser.add_argument("--effect", choices=["none", "glow"], default="none", help="Presentation effect layer. Use none for CADIS-rendered style fidelity.")
     parser.add_argument("--width", type=int, default=1280)
     parser.add_argument("--height", type=int, default=720)
     parser.add_argument("--frames", type=int, default=96)
@@ -45,6 +47,14 @@ def main(argv: list[str] | None = None) -> int:
         raise SystemExit("--width/--height are too small")
     if args.frames < 2:
         raise SystemExit("--frames must be at least 2")
+    storyboard = args.mode or args.storyboard
+    output_format = _output_format(args.output)
+    if output_format not in {"jpeg", "png", "gif"}:
+        raise SystemExit("--output must end with .jpg, .jpeg, .png, or .gif")
+    if storyboard != "all-points" and args.effect == "none":
+        raise SystemExit("--effect glow is required for animated storyboard modes until layered hand-off is available")
+    if storyboard != "all-points" and output_format != "gif":
+        raise SystemExit("animated storyboard modes require .gif output")
 
     progress = Progress(enabled=not args.quiet)
     points = extract_photo_points(
@@ -91,28 +101,71 @@ def main(argv: list[str] | None = None) -> int:
 
     style = load_style(args.style, style_id=args.map_style)
     cadis_style_profile = load_cadis_style_profile(args.style)
-    base_map = engine.render_base_map(
-        map_style=args.map_style,
-        width=args.width,
-        height=args.height,
-        crop_bounds=None,
-        style_profile=cadis_style_profile,
-    )
-    render_report = render_gif(
-        scope.kept,
-        args.output,
-        bounds=base_map.bounds,
-        style=style,
-        base_map=base_map.image,
-        width=args.width,
-        height=args.height,
-        mode=args.mode,
-        frames=args.frames,
-        fps=args.fps,
-        cluster_radius_km=args.cluster_radius_km,
-        progress=progress.say,
-        frame_progress=progress.step,
-    )
+    if args.effect == "none":
+        base_map = engine.render_marked_map(
+            points=scope.kept,
+            map_style=args.map_style,
+            width=args.width,
+            height=args.height,
+            crop_bounds=None,
+            style_profile=cadis_style_profile,
+        )
+        render_report = render_still(
+            scope.kept,
+            args.output,
+            bounds=base_map.bounds,
+            style=style,
+            base_map=base_map.image,
+            width=args.width,
+            height=args.height,
+            effect="none",
+            cluster_radius_km=args.cluster_radius_km,
+            progress=progress.say,
+        )
+    elif storyboard == "all-points":
+        base_map = engine.render_base_map(
+            map_style=args.map_style,
+            width=args.width,
+            height=args.height,
+            crop_bounds=None,
+            style_profile=cadis_style_profile,
+        )
+        render_report = render_still(
+            scope.kept,
+            args.output,
+            bounds=base_map.bounds,
+            style=style,
+            base_map=base_map.image,
+            width=args.width,
+            height=args.height,
+            effect="glow",
+            cluster_radius_km=args.cluster_radius_km,
+            progress=progress.say,
+        )
+    else:
+        base_map = engine.render_base_map(
+            map_style=args.map_style,
+            width=args.width,
+            height=args.height,
+            crop_bounds=None,
+            style_profile=cadis_style_profile,
+        )
+        render_report = render_gif(
+            scope.kept,
+            args.output,
+            bounds=base_map.bounds,
+            style=style,
+            base_map=base_map.image,
+            width=args.width,
+            height=args.height,
+            mode=storyboard,
+            frames=args.frames,
+            fps=args.fps,
+            cluster_radius_km=args.cluster_radius_km,
+            progress=progress.say,
+            frame_progress=progress.step,
+        )
+        render_report["effect"] = "glow"
     report |= render_report
     report["base_map"] = base_map.metadata
     _write_report(args.report_json, report)
@@ -125,6 +178,8 @@ def _preflight_report(*, args: argparse.Namespace, scene: dict, total_count: int
         "photos_path": str(args.photos_path),
         "scene_id": args.scene_id,
         "map_style": args.map_style,
+        "storyboard": args.mode or args.storyboard,
+        "effect": args.effect,
         "scene": scene,
         "scope_policy": args.scope_policy,
         "point_count_total": total_count,
@@ -133,6 +188,17 @@ def _preflight_report(*, args: argparse.Namespace, scene: dict, total_count: int
         "filtered_reasons": scope.skipped_reasons,
         "detected_countries": scope.detected_countries,
     }
+
+
+def _output_format(output: Path) -> str:
+    suffix = output.suffix.lower()
+    if suffix in {".jpg", ".jpeg"}:
+        return "jpeg"
+    if suffix == ".png":
+        return "png"
+    if suffix == ".gif":
+        return "gif"
+    return ""
 
 
 def _write_report(path: Path | None, report: dict) -> None:

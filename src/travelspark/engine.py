@@ -103,6 +103,66 @@ class CadisMapRenderEngine:
             },
         )
 
+    def render_marked_map(
+        self,
+        *,
+        points: list[Any],
+        map_style: str,
+        width: int,
+        height: int,
+        crop_bounds: Bounds | None = None,
+        style_profile: dict[str, Any] | None = None,
+    ) -> BaseMap:
+        client = self._client()
+        payload: dict[str, Any] = {
+            "scene_id": self.scene_id,
+            "style_id": map_style,
+            "points": [
+                {
+                    "lat": float(point.latitude),
+                    "lon": float(point.longitude),
+                    "density": 1,
+                }
+                for point in points
+            ],
+        }
+        if style_profile is not None:
+            payload["style_profile"] = style_profile
+        if crop_bounds is not None:
+            payload["crop_bounds"] = [
+                crop_bounds.min_lon,
+                crop_bounds.min_lat,
+                crop_bounds.max_lon,
+                crop_bounds.max_lat,
+            ]
+        result = client.render_map(payload)
+        render_id = result.get("render_id")
+        if not isinstance(render_id, str) or not render_id:
+            raise RuntimeError("cadis-map-render did not return a render_id")
+        image_path = self.output_root / "renders" / render_id / "map.png"
+        if not image_path.exists():
+            raise RuntimeError(f"cadis-map-render output image was not found: {image_path}")
+        image = Image.open(image_path).convert("RGB")
+        if image.size != (width, height):
+            image = image.resize((width, height), Image.Resampling.LANCZOS)
+        bounds = crop_bounds or self._scene_bounds_from_result(result)
+        return BaseMap(
+            image=image,
+            bounds=bounds,
+            scene_id=str(result.get("scene_id") or self.scene_id),
+            scene_version=str(result["scene_version"]) if result.get("scene_version") is not None else None,
+            metadata={
+                "source": "cadis-map-render",
+                "render_type": result.get("render_type"),
+                "scene_id": result.get("scene_id"),
+                "scene_version": result.get("scene_version"),
+                "style_id": result.get("style_id"),
+                "cadis_style_id": result.get("cadis_style_id"),
+                "activation_mode": result.get("activation_mode"),
+                "image_path": str(image_path),
+            },
+        )
+
     def _client(self):
         try:
             from cadis_map_render import CadisMapRenderClient
@@ -123,6 +183,12 @@ class CadisMapRenderEngine:
             cache_root=self.cache_root,
             output_root=self.output_root,
         )
+
+    def _scene_bounds_from_result(self, result: dict[str, Any]) -> Bounds:
+        for scene in self._client().list_scenes():
+            if _scene_id_matches(str(scene.get("scene_id", "")), str(result.get("scene_id") or self.scene_id)):
+                return scene_bounds(scene)
+        raise RuntimeError("rendered scene metadata does not include bounds")
 
 
 def scene_bounds(scene: dict[str, Any]) -> Bounds:

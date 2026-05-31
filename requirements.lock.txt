@@ -4,8 +4,8 @@
 cadis==0.9.0
 cadis-0.9.0-py3-none-any.whl sha256=3e4bd36b927a69f1b7f717e12ec0130ad793b9d826c81cc2db98076427bd711d
 
-cadis-map-render==0.3.31
-cadis_map_render-0.3.31-py3-none-any.whl sha256=dc3de4e064b426ef207ed0f55cbe0425aba5346134be08c26cd4f926f9a81acc
+cadis-map-render==0.3.32
+cadis_map_render-0.3.32-py3-none-any.whl sha256=018273fde06a6998fda0cacef1aa9343045ec7947a3730941b64763e1f71556e
 
-cadis-travel-spark==0.1.4
-cadis_travel_spark-0.1.4-py3-none-any.whl sha256=53c63d072c4b0942c02fd509232fac8f2658486dc36ccd3023da752f19869e25
+cadis-travel-spark==0.1.5
+cadis_travel_spark-0.1.5-py3-none-any.whl sha256=6016833f299a945434f500828505cfc9babe28e5d79c810892916addb5cb39d6

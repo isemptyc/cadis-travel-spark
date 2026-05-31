@@ -1,16 +1,16 @@
 # TravelSpark
 
-TravelSpark turns a local photo folder into an animated travel map GIF.
+TravelSpark turns a local photo folder into a semantic travel presentation.
 
 The application layer owns photo scanning, EXIF GPS extraction, point
-filtering, animation timing, and GIF encoding. CADIS map rendering is expected
-to come from `cadis-map-render`; CADIS country lookup is used as an optional
-preflight/filter helper.
+filtering, storyboard timing, presentation effects, and output export. CADIS
+map rendering is expected to come from `cadis-map-render`; CADIS country lookup
+is used as an optional preflight/filter helper.
 
 ## Contract
 
 ```text
-PathToPhotos + SceneName + MapStyle + Options -> GIF
+PathToPhotos + SceneName + MapStyle + Storyboard + Options -> JPEG/PNG/GIF
 ```
 
 Example:
@@ -19,8 +19,18 @@ Example:
 travelspark /path/to/photos \
   --scene-id world_8192 \
   --map-style spark-night \
-  --output travel.gif
+  --storyboard all-points \
+  --effect none \
+  --output travel.jpg
 ```
+
+PoC framing:
+
+- `cadis-map-render` owns stylish still-image rendering.
+- TravelSpark owns the Director/storyboard and export workflow.
+- `--effect none` uses the CADIS-rendered marked still frame directly.
+- `--effect glow` uses TravelSpark's current presentation effect layer.
+- Animated storyboards currently require `--effect glow` and `.gif` output.
 
 ## Install
 
@@ -29,7 +39,7 @@ Mac/Linux:
 ```bash
 ./install.sh
 source .venv/bin/activate
-travelspark /path/to/photos --scene-id world_8192 --output travel.gif
+travelspark /path/to/photos --scene-id world_8192 --output travel.jpg
 ```
 
 Windows PowerShell:
@@ -37,7 +47,7 @@ Windows PowerShell:
 ```powershell
 .\install.ps1
 .venv\Scripts\Activate.ps1
-travelspark C:\path\to\photos --scene-id world_8192 --output travel.gif
+travelspark C:\path\to\photos --scene-id world_8192 --output travel.jpg
 ```
 
 The install scripts create a repo-local `.venv`. Activating that environment
@@ -45,7 +55,7 @@ must be done in your current shell after the installer exits; otherwise the
 `travelspark` command will not be on `PATH`. You can also run without activating:
 
 ```bash
-.venv/bin/travelspark /path/to/photos --scene-id world_8192 --output travel.gif
+.venv/bin/travelspark /path/to/photos --scene-id world_8192 --output travel.jpg
 ```
 
 The installers prefer pinned wheels from `wheels/` when present. This keeps the
@@ -56,18 +66,18 @@ To update an existing activated `.venv` after `git pull`, reinstall the
 TravelSpark wheel without touching already installed dependencies:
 
 ```bash
-python -m pip install --force-reinstall --no-deps wheels/cadis_map_render-0.3.31-py3-none-any.whl wheels/cadis_travel_spark-0.1.4-py3-none-any.whl
+python -m pip install --force-reinstall --no-deps wheels/cadis_map_render-0.3.32-py3-none-any.whl wheels/cadis_travel_spark-0.1.5-py3-none-any.whl
 ```
 
 If Pillow was accidentally reinstalled into a broken state, repair it first:
 
 ```bash
 python -m pip install --force-reinstall --no-cache-dir "Pillow>=10"
-python -m pip install --force-reinstall --no-deps wheels/cadis_map_render-0.3.31-py3-none-any.whl wheels/cadis_travel_spark-0.1.4-py3-none-any.whl
+python -m pip install --force-reinstall --no-deps wheels/cadis_map_render-0.3.32-py3-none-any.whl wheels/cadis_travel_spark-0.1.5-py3-none-any.whl
 ```
 
 Vendored wheels are pinned in `requirements.lock.txt`:
 
 - `cadis==0.9.0`
-- `cadis-map-render==0.3.31`
-- `cadis-travel-spark==0.1.4`
+- `cadis-map-render==0.3.32`
+- `cadis-travel-spark==0.1.5`

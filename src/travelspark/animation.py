@@ -69,11 +69,72 @@ def render_gif(
         progress(f"done: {output}")
     return {
         "output": str(output),
+        "output_format": "gif",
         "width": width,
         "height": height,
-        "mode": mode,
+        "storyboard": mode,
         "frames": frames,
         "fps": fps,
+        "point_count": len(points),
+        "cluster_count": len(clusters),
+        "bounds": bounds.as_dict(),
+    }
+
+
+def render_still(
+    points: list[PhotoPoint],
+    output: Path,
+    *,
+    bounds: Bounds,
+    style: dict,
+    base_map: Image.Image,
+    width: int = 1280,
+    height: int = 720,
+    effect: str = "none",
+    cluster_radius_km: float = 8.0,
+    progress: Callable[[str], None] | None = None,
+) -> dict:
+    if not points:
+        raise ValueError("no photos with GPS remain after filtering")
+    output.parent.mkdir(parents=True, exist_ok=True)
+    if progress is not None:
+        progress("preparing still frame")
+    base = base_map.resize((width, height)).convert("RGBA")
+    clusters = cluster_points(points, cluster_radius_km)
+    if effect == "none":
+        frame = base.convert("RGB")
+    elif effect == "glow":
+        frame = _compose_frame(
+            base,
+            points,
+            clusters,
+            bounds=bounds,
+            style=style,
+            frame_index=0,
+            frame_count=1,
+            mode="all-points",
+        )
+    else:
+        raise ValueError(f"unknown effect {effect!r}; use none or glow")
+    output_format = _output_format(output)
+    if output_format == "jpeg":
+        frame.save(output, format="JPEG", quality=92, optimize=True)
+    elif output_format == "png":
+        frame.save(output, format="PNG")
+    elif output_format == "gif":
+        frame.convert("P", palette=Image.ADAPTIVE, colors=256).save(output, format="GIF")
+    else:
+        raise ValueError(f"unsupported output extension: {output.suffix or '<none>'}")
+    if progress is not None:
+        progress(f"done: {output}")
+    return {
+        "output": str(output),
+        "output_format": output_format,
+        "width": width,
+        "height": height,
+        "storyboard": "all-points",
+        "frames": 1,
+        "effect": effect,
         "point_count": len(points),
         "cluster_count": len(clusters),
         "bounds": bounds.as_dict(),
@@ -96,14 +157,16 @@ def _compose_frame(
     marker_layer = Image.new("RGBA", base.size, (0, 0, 0, 0))
     glow_draw = ImageDraw.Draw(glow_layer, "RGBA")
     marker_draw = ImageDraw.Draw(marker_layer, "RGBA")
-    if mode == "timeline":
+    if mode == "all-points":
+        activations = _all_point_activations(points)
+    elif mode == "timeline":
         activations = _timeline_activations(points, frame_index, frame_count)
     elif mode == "cluster":
         activations = _cluster_activations(clusters, frame_index, frame_count)
     elif mode == "constellation":
         activations = _constellation_activations(points, frame_index, frame_count)
     else:
-        raise ValueError(f"unknown mode {mode!r}; use timeline, cluster, or constellation")
+        raise ValueError(f"unknown mode {mode!r}; use all-points, timeline, cluster, or constellation")
     for lat, lon, weight, intensity in activations:
         x, y = project_to_pixel(lon, lat, bounds=bounds, width=base.width, height=base.height)
         if x < -120 or y < -120 or x > base.width + 120 or y > base.height + 120:
@@ -127,6 +190,10 @@ def _timeline_activations(points: list[PhotoPoint], frame_index: int, frame_coun
         point = ordered[idx]
         rows.append((point.latitude, point.longitude, 1, intensity))
     return rows
+
+
+def _all_point_activations(points: list[PhotoPoint]) -> list[tuple[float, float, int, float]]:
+    return [(point.latitude, point.longitude, 1, 1.0) for point in points]
 
 
 def _cluster_activations(clusters: list[Cluster], frame_index: int, frame_count: int) -> list[tuple[float, float, int, float]]:
@@ -172,3 +239,14 @@ def _draw_glow(
     core_radius = max(2.0, min(10.0, 2.2 + math.sqrt(weight) * 0.8))
     marker_draw.ellipse((x - core_radius - 1.4, y - core_radius - 1.4, x + core_radius + 1.4, y + core_radius + 1.4), fill=(*outline, int(alpha * 0.72)))
     marker_draw.ellipse((x - core_radius, y - core_radius, x + core_radius, y + core_radius), fill=(*marker, min(255, alpha + 35)))
+
+
+def _output_format(output: Path) -> str:
+    suffix = output.suffix.lower()
+    if suffix in {".jpg", ".jpeg"}:
+        return "jpeg"
+    if suffix == ".png":
+        return "png"
+    if suffix == ".gif":
+        return "gif"
+    return ""

@@ -20,6 +20,6 @@ if (-not $AppWheels) {
 Write-Host "TravelSpark installed. Activate with:"
 Write-Host "  .venv\Scripts\Activate.ps1"
 Write-Host "Then run:"
-Write-Host "  travelspark C:\path\to\photos --scene-id world_8192 --output travel.gif"
+Write-Host "  travelspark C:\path\to\photos --scene-id world_8192 --output travel.jpg"
 Write-Host "Or run without activating:"
-Write-Host "  .venv\Scripts\travelspark C:\path\to\photos --scene-id world_8192 --output travel.gif"
+Write-Host "  .venv\Scripts\travelspark C:\path\to\photos --scene-id world_8192 --output travel.jpg"

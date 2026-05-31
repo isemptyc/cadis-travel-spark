@@ -20,6 +20,6 @@ fi
 echo "TravelSpark installed. Activate with:"
 echo "  source .venv/bin/activate"
 echo "Then run:"
-echo "  travelspark /path/to/photos --scene-id world_8192 --output travel.gif"
+echo "  travelspark /path/to/photos --scene-id world_8192 --output travel.jpg"
 echo "Or run without activating:"
-echo "  .venv/bin/travelspark /path/to/photos --scene-id world_8192 --output travel.gif"
+echo "  .venv/bin/travelspark /path/to/photos --scene-id world_8192 --output travel.jpg"
