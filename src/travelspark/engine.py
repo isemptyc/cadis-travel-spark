@@ -27,7 +27,7 @@ class CadisMapRenderEngine:
         *,
         scene_id: str,
         output_root: Path,
-        cache_root: Path,
+        cache_root: Path | None = None,
         catalog_root: str = DEFAULT_MAP_DATASET_CATALOG_ROOT,
         dataset_root: Path | None = None,
     ) -> None:

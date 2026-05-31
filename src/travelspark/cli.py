@@ -27,7 +27,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--style", type=Path, default=None, help="Optional local spark overlay style JSON.")
     parser.add_argument("--catalog-root", default=DEFAULT_MAP_DATASET_CATALOG_ROOT, help="CADIS map dataset catalog root.")
     parser.add_argument("--dataset-root", type=Path, default=None, help="Optional local CADIS map dataset root.")
-    parser.add_argument("--cache-root", type=Path, default=Path(".travelspark-cache"), help="Download/cache root.")
+    parser.add_argument("--cache-root", type=Path, default=None, help="Optional CADIS map renderer cache root.")
     parser.add_argument("--output-root", type=Path, default=Path(".travelspark-output"), help="Renderer output root.")
     parser.add_argument("--scope-policy", choices=["filter", "strict", "none"], default="filter")
     parser.add_argument("--country-filter", choices=["auto", "yes", "no"], default="auto", help="Use cadis lookup for country-scope filtering.")

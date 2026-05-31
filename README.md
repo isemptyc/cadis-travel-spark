@@ -43,7 +43,7 @@ repo usable as a one-stop side-project package while leaving `cadis` and
 Vendored wheels are pinned in `requirements.lock.txt`:
 
 - `cadis==0.8.161`
-- `cadis-map-render==0.3.27`
+- `cadis-map-render==0.3.28`
 
 ## Dataset
 
@@ -54,4 +54,6 @@ https://map-dataset.cadis.dev/releases
 ```
 
 `cadis-map-render` owns downloading, caching, extracting, and validating scene
-packages from that catalog.
+packages from that catalog. By default it stores downloaded map datasets in the
+OS user cache directory. Use `--cache-root` only when you want to override that
+engine cache location.
