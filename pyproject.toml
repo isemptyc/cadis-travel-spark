@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cadis-travel-spark"
+version = "0.1.0"
+description = "Create animated travel map GIFs from local photo folders."
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "Apache-2.0"}
+dependencies = [
+  "Pillow>=10",
+]
+
+[project.optional-dependencies]
+cadis = [
+  "cadis",
+]
+
+[project.scripts]
+travelspark = "travelspark.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
