@@ -89,7 +89,7 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(report, ensure_ascii=False, indent=2))
         return 0
 
-    style = load_style(args.style)
+    style = load_style(args.style, style_id=args.map_style)
     base_map = engine.render_base_map(
         map_style=args.map_style,
         width=args.width,

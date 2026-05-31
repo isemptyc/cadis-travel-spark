@@ -1,0 +1,30 @@
+import json
+
+from travelspark.style import color, load_style, number
+
+
+def test_map_style_selects_overlay_preset():
+    style = load_style(None, style_id="puzzle-pale")
+
+    assert color(style, "activation", "glow_color") == (255, 255, 255)
+    assert number(style, "activation", "max_glow_radius_px") == 58
+
+
+def test_external_style_accepts_cadis_hex_colors(tmp_path):
+    path = tmp_path / "memory_atlas_night_v1.json"
+    path.write_text(
+        json.dumps(
+            {
+                "activation": {
+                    "glow_color": "#f7d36b",
+                    "marker_color": "#fff4c2",
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    style = load_style(path, style_id="spark-night")
+
+    assert color(style, "activation", "glow_color") == (247, 211, 107)
+    assert color(style, "activation", "marker_color") == (255, 244, 194)
