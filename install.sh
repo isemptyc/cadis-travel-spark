@@ -17,5 +17,7 @@ python -m pip install -e "${ROOT_DIR}"
 
 echo "TravelSpark installed. Activate with:"
 echo "  source .venv/bin/activate"
-echo "Run:"
+echo "Then run:"
 echo "  travelspark /path/to/photos --scene-id world_8192 --output travel.gif"
+echo "Or run without activating:"
+echo "  .venv/bin/travelspark /path/to/photos --scene-id world_8192 --output travel.gif"

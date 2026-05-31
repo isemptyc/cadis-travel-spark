@@ -16,5 +16,7 @@ python -m pip install -e $RootDir
 
 Write-Host "TravelSpark installed. Activate with:"
 Write-Host "  .venv\Scripts\Activate.ps1"
-Write-Host "Run:"
+Write-Host "Then run:"
 Write-Host "  travelspark C:\path\to\photos --scene-id world_8192 --output travel.gif"
+Write-Host "Or run without activating:"
+Write-Host "  .venv\Scripts\travelspark C:\path\to\photos --scene-id world_8192 --output travel.gif"

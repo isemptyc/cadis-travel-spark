@@ -28,12 +28,24 @@ Mac/Linux:
 
 ```bash
 ./install.sh
+source .venv/bin/activate
+travelspark /path/to/photos --scene-id world_8192 --output travel.gif
 ```
 
 Windows PowerShell:
 
 ```powershell
 .\install.ps1
+.venv\Scripts\Activate.ps1
+travelspark C:\path\to\photos --scene-id world_8192 --output travel.gif
+```
+
+The install scripts create a repo-local `.venv`. Activating that environment
+must be done in your current shell after the installer exits; otherwise the
+`travelspark` command will not be on `PATH`. You can also run without activating:
+
+```bash
+.venv/bin/travelspark /path/to/photos --scene-id world_8192 --output travel.gif
 ```
 
 The installers prefer pinned wheels from `wheels/` when present. This keeps the
