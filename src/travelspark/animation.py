@@ -248,48 +248,83 @@ def _paint_ambient_spark_frame(
     marker = color(style, "activation", "marker_color")
     outline = color(style, "activation", "marker_outline_color")
     glow_draw = ImageDraw.Draw(glow_layer, "RGBA")
-    marker_draw = ImageDraw.Draw(marker_layer, "RGBA")
     phase = frame_index / max(1, frame_count)
     for index, cluster in enumerate(clusters):
         x, y = project_to_pixel(cluster.longitude, cluster.latitude, bounds=bounds, width=glow_layer.width, height=glow_layer.height)
         if x < -120 or y < -120 or x > glow_layer.width + 120 or y > glow_layer.height + 120:
             continue
         seed = _stable_units(f"cluster:{index}:{cluster.latitude:.6f}:{cluster.longitude:.6f}", 3)
-        pulse = 0.88 + 0.12 * math.sin(2.0 * math.pi * phase + seed[0] * math.tau)
-        radius = min(88.0, max(34.0, 28.0 + math.sqrt(cluster.count) * 11.0 + seed[1] * 18.0)) * pulse
-        alpha = int(22 + seed[2] * 18)
+        pulse = 0.96 + 0.04 * math.sin(2.0 * math.pi * phase + seed[0] * math.tau)
+        radius = min(56.0, max(24.0, 18.0 + math.sqrt(cluster.count) * 5.0 + seed[1] * 8.0)) * pulse
+        alpha = int(8 + seed[2] * 6)
         glow_draw.ellipse((x - radius, y - radius, x + radius, y + radius), fill=(*glow, alpha))
-    blurred_cluster = glow_layer.filter(ImageFilter.GaussianBlur(radius=14))
+    blurred_cluster = glow_layer.filter(ImageFilter.GaussianBlur(radius=7))
     glow_layer.paste(blurred_cluster)
 
     for index, point in enumerate(points):
         seed = _stable_units(f"point:{index}:{point.path}:{point.latitude:.6f}:{point.longitude:.6f}", 8)
-        period = 28.0 + seed[0] * 48.0
+        period = 72.0 + seed[0] * 96.0
         point_phase = seed[1] * period
         wave = (math.sin(math.tau * (frame_index + point_phase) / period) + 1.0) / 2.0
-        gate = _smoothstep(0.36, 0.92, wave)
-        if gate <= 0.02 and seed[2] > 0.22:
+        gate = _smoothstep(0.62, 0.98, wave)
+        if gate <= 0.02:
             continue
-        min_intensity = 0.08 + seed[3] * 0.12
-        max_intensity = 0.38 + seed[4] * 0.38
+        min_intensity = 0.04 + seed[3] * 0.06
+        max_intensity = 0.22 + seed[4] * 0.28
         intensity = min_intensity + (max_intensity - min_intensity) * gate
-        if intensity < 0.10:
+        if intensity < 0.08:
             continue
         x, y = project_to_pixel(point.longitude, point.latitude, bounds=bounds, width=glow_layer.width, height=glow_layer.height)
-        jitter = 0.8
+        jitter = 0.45
         x += math.sin(math.tau * phase + seed[5] * math.tau) * jitter
         y += math.cos(math.tau * phase + seed[6] * math.tau) * jitter
         if x < -80 or y < -80 or x > glow_layer.width + 80 or y > glow_layer.height + 80:
             continue
-        glow_radius = 12.0 + seed[7] * 40.0
-        core_radius = 1.8 + seed[2] * 3.0
-        glow_alpha = int(96 * intensity)
-        marker_alpha = int(205 * intensity)
+        glow_radius = 8.0 + seed[7] * 22.0
+        core_radius = 0.8 + seed[2] * 1.4
+        glow_alpha = int(70 * intensity)
+        marker_alpha = int(155 * intensity)
         glow_draw.ellipse((x - glow_radius, y - glow_radius, x + glow_radius, y + glow_radius), fill=(*glow, glow_alpha))
-        marker_draw.ellipse((x - core_radius - 0.9, y - core_radius - 0.9, x + core_radius + 0.9, y + core_radius + 0.9), fill=(*outline, int(marker_alpha * 0.45)))
-        marker_draw.ellipse((x - core_radius, y - core_radius, x + core_radius, y + core_radius), fill=(*marker, min(235, marker_alpha + 25)))
-    blurred_sparks = glow_layer.filter(ImageFilter.GaussianBlur(radius=7))
+        _draw_soft_pinpoint(marker_layer, x, y, core_radius, marker, outline, marker_alpha)
+    blurred_sparks = glow_layer.filter(ImageFilter.GaussianBlur(radius=5))
     glow_layer.paste(blurred_sparks)
+
+
+def _draw_soft_pinpoint(
+    marker_layer: Image.Image,
+    x: float,
+    y: float,
+    radius: float,
+    marker: tuple[int, int, int],
+    outline: tuple[int, int, int],
+    alpha: int,
+) -> None:
+    scale = 3
+    pad = max(5, int(math.ceil((radius + 2.0) * scale)))
+    surface = Image.new("RGBA", (pad * 2, pad * 2), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(surface, "RGBA")
+    center = pad
+    scaled_radius = radius * scale
+    draw.ellipse(
+        (
+            center - scaled_radius - 0.8,
+            center - scaled_radius - 0.8,
+            center + scaled_radius + 0.8,
+            center + scaled_radius + 0.8,
+        ),
+        fill=(*outline, int(alpha * 0.22)),
+    )
+    draw.ellipse(
+        (
+            center - scaled_radius,
+            center - scaled_radius,
+            center + scaled_radius,
+            center + scaled_radius,
+        ),
+        fill=(*marker, min(210, alpha + 18)),
+    )
+    surface = surface.resize((max(1, pad * 2 // scale), max(1, pad * 2 // scale)), Image.Resampling.LANCZOS)
+    marker_layer.alpha_composite(surface, (int(round(x)) - surface.width // 2, int(round(y)) - surface.height // 2))
 
 
 def _draw_glow(
