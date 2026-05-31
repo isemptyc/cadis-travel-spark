@@ -43,7 +43,7 @@ repo usable as a one-stop side-project package while leaving `cadis` and
 Vendored wheels are pinned in `requirements.lock.txt`:
 
 - `cadis==0.8.161`
-- `cadis-map-render==0.3.26`
+- `cadis-map-render==0.3.27`
 
 ## Dataset
 
