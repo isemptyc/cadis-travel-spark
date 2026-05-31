@@ -44,16 +44,3 @@ Vendored wheels are pinned in `requirements.lock.txt`:
 
 - `cadis==0.9.0`
 - `cadis-map-render==0.3.28`
-
-## Dataset
-
-The default CADIS map dataset catalog root is:
-
-```text
-https://map-dataset.cadis.dev/releases
-```
-
-`cadis-map-render` owns downloading, caching, extracting, and validating scene
-packages from that catalog. By default it stores downloaded map datasets in the
-OS user cache directory. Use `--cache-root` only when you want to override that
-engine cache location.
