@@ -107,6 +107,10 @@ Expected:
 - `travel_cdn.jpg` is created.
 - `base_map.cadis_style_id` is `memory_atlas_night_v1`.
 
+CDN mode is the public onboarding path. A local `--dataset-root` run may use a
+different scene version than CDN mode, so do not treat local-vs-CDN visual
+differences as a TravelSpark failure until the scene versions are confirmed.
+
 ## Negative Checks
 
 These should fail with clear messages:
