@@ -52,10 +52,52 @@ class CadisMapRenderEngine:
         height: int,
         crop_bounds: Bounds | None = None,
     ) -> BaseMap:
-        raise RuntimeError(
-            "TravelSpark requires cadis-map-render basemap-only or spark-night support before "
-            "the official engine path can render GIFs. The app-layer scaffold is ready; implement "
-            "the renderer capability in cadis-map-render next."
+        client = self._client()
+        payload: dict[str, Any] = {
+            "scene_id": self.scene_id,
+            "style_id": map_style,
+        }
+        if crop_bounds is not None:
+            payload["crop_bounds"] = [
+                crop_bounds.min_lon,
+                crop_bounds.min_lat,
+                crop_bounds.max_lon,
+                crop_bounds.max_lat,
+            ]
+        try:
+            result = client.render_base_map(payload)
+        except AttributeError as exc:
+            raise RuntimeError(
+                "cadis-map-render is installed, but it is too old for TravelSpark. "
+                "Install the pinned cadis_map_render wheel from this repo."
+            ) from exc
+
+        image_path = result.get("image_path")
+        if not isinstance(image_path, str) or not image_path:
+            raise RuntimeError("cadis-map-render did not return a base map image_path")
+        bounds = result.get("bounds")
+        if not isinstance(bounds, list | tuple):
+            raise RuntimeError("cadis-map-render did not return base map bounds")
+
+        image = Image.open(image_path).convert("RGB")
+        if image.size != (width, height):
+            image = image.resize((width, height), Image.Resampling.LANCZOS)
+        return BaseMap(
+            image=image,
+            bounds=bounds_from_values(bounds),
+            scene_id=str(result.get("scene_id") or self.scene_id),
+            scene_version=str(result["scene_version"]) if result.get("scene_version") is not None else None,
+            metadata={
+                "source": "cadis-map-render",
+                "render_type": result.get("render_type"),
+                "scene_id": result.get("scene_id"),
+                "scene_version": result.get("scene_version"),
+                "style_id": result.get("style_id"),
+                "cadis_style_id": result.get("cadis_style_id"),
+                "bounds": list(bounds),
+                "projection": result.get("projection"),
+                "image_path": image_path,
+            },
         )
 
     def _client(self):

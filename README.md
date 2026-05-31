@@ -55,5 +55,5 @@ repo usable as a one-stop side-project package while leaving `cadis` and
 Vendored wheels are pinned in `requirements.lock.txt`:
 
 - `cadis==0.9.0`
-- `cadis-map-render==0.3.28`
-- `cadis-travel-spark==0.1.0`
+- `cadis-map-render==0.3.29`
+- `cadis-travel-spark==0.1.1`
