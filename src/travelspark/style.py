@@ -7,16 +7,16 @@ from typing import Any
 
 DEFAULT_SPARK_STYLE: dict[str, Any] = {
     "base": {
-        "sea": [5, 14, 25],
-        "land": [33, 65, 50],
-        "inner_border": [45, 75, 66],
+        "sea": "#07121f",
+        "land": "#2e4a40",
+        "inner_border": "#476a61",
     },
     "activation": {
-        "glow_color": [255, 209, 96],
-        "marker_color": [255, 239, 166],
-        "marker_outline_color": [79, 61, 20],
-        "min_glow_radius_px": 26,
-        "max_glow_radius_px": 86,
+        "glow_color": "#ffd36f",
+        "marker_color": "#fff0aa",
+        "marker_outline_color": "#1b2440",
+        "min_glow_radius_px": 30.0,
+        "max_glow_radius_px": 142.0,
     },
 }
 
