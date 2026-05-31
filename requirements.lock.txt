@@ -6,3 +6,6 @@ cadis-0.9.0-py3-none-any.whl sha256=3e4bd36b927a69f1b7f717e12ec0130ad793b9d826c8
 
 cadis-map-render==0.3.28
 cadis_map_render-0.3.28-py3-none-any.whl sha256=d5be10b29dae7e561c78624755b9500100c5fe1d93701ef77237fd933908764b
+
+cadis-travel-spark==0.1.0
+cadis_travel_spark-0.1.0-py3-none-any.whl sha256=a5d19035069b7e9c889dd073a88d48c923d831f49e7fde5ebe3e23d2866ba2b0

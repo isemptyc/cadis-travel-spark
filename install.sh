@@ -13,7 +13,9 @@ if compgen -G "${ROOT_DIR}/wheels/*.whl" > /dev/null; then
   python -m pip install "${ROOT_DIR}"/wheels/*.whl
 fi
 
-python -m pip install -e "${ROOT_DIR}"
+if ! compgen -G "${ROOT_DIR}/wheels/cadis_travel_spark-*.whl" > /dev/null; then
+  python -m pip install "${ROOT_DIR}"
+fi
 
 echo "TravelSpark installed. Activate with:"
 echo "  source .venv/bin/activate"

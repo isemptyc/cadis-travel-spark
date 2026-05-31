@@ -12,7 +12,10 @@ if ($Wheels) {
   python -m pip install $Wheels.FullName
 }
 
-python -m pip install -e $RootDir
+$AppWheels = Get-ChildItem -Path (Join-Path $RootDir "wheels") -Filter "cadis_travel_spark-*.whl" -ErrorAction SilentlyContinue
+if (-not $AppWheels) {
+  python -m pip install $RootDir
+}
 
 Write-Host "TravelSpark installed. Activate with:"
 Write-Host "  .venv\Scripts\Activate.ps1"
