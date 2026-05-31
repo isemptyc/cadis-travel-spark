@@ -9,7 +9,7 @@ from .engine import DEFAULT_MAP_DATASET_CATALOG_ROOT, CadisMapRenderEngine, scen
 from .exif import export_points_json, extract_photo_points
 from .progress import Progress
 from .scope import cadis_country_lookup, filter_points_for_scene
-from .style import load_style
+from .style import load_cadis_style_profile, load_style
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -90,11 +90,13 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     style = load_style(args.style, style_id=args.map_style)
+    cadis_style_profile = load_cadis_style_profile(args.style)
     base_map = engine.render_base_map(
         map_style=args.map_style,
         width=args.width,
         height=args.height,
         crop_bounds=None,
+        style_profile=cadis_style_profile,
     )
     render_report = render_gif(
         scope.kept,

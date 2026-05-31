@@ -1,6 +1,6 @@
 import json
 
-from travelspark.style import color, load_style, number
+from travelspark.style import color, load_cadis_style_profile, load_style, number
 
 
 def test_map_style_selects_overlay_preset():
@@ -28,3 +28,25 @@ def test_external_style_accepts_cadis_hex_colors(tmp_path):
 
     assert color(style, "activation", "glow_color") == (247, 211, 107)
     assert color(style, "activation", "marker_color") == (255, 244, 194)
+
+
+def test_external_cadis_style_profile_is_available_for_basemap(tmp_path):
+    path = tmp_path / "memory_atlas_night_v1.json"
+    path.write_text(
+        json.dumps(
+            {
+                "profile": "cadis.semantic_world.map_style",
+                "style_id": "memory_atlas_night_v1",
+                "base": {
+                    "sea": "#07121f",
+                    "land": "#2e4a40",
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    profile = load_cadis_style_profile(path)
+
+    assert profile is not None
+    assert profile["style_id"] == "memory_atlas_night_v1"

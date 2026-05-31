@@ -51,12 +51,15 @@ class CadisMapRenderEngine:
         width: int,
         height: int,
         crop_bounds: Bounds | None = None,
+        style_profile: dict[str, Any] | None = None,
     ) -> BaseMap:
         client = self._client()
         payload: dict[str, Any] = {
             "scene_id": self.scene_id,
             "style_id": map_style,
         }
+        if style_profile is not None:
+            payload["style_profile"] = style_profile
         if crop_bounds is not None:
             payload["crop_bounds"] = [
                 crop_bounds.min_lon,

@@ -44,6 +44,17 @@ def load_style(path: Path | None, *, style_id: str = "spark-night") -> dict[str,
     return _deep_merge(_deep_merge(DEFAULT_SPARK_STYLE, base), payload)
 
 
+def load_cadis_style_profile(path: Path | None) -> dict[str, Any] | None:
+    if path is None:
+        return None
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise ValueError(f"style must be a JSON object: {path}")
+    if payload.get("profile") != "cadis.semantic_world.map_style":
+        return None
+    return payload
+
+
 def color(style: dict[str, Any], section: str, key: str) -> tuple[int, int, int]:
     value = style.get(section, {}).get(key, DEFAULT_SPARK_STYLE[section][key])
     if isinstance(value, str):
