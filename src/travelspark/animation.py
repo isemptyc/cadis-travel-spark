@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import math
 from pathlib import Path
 from typing import Callable
@@ -157,6 +158,20 @@ def _compose_frame(
     marker_layer = Image.new("RGBA", base.size, (0, 0, 0, 0))
     glow_draw = ImageDraw.Draw(glow_layer, "RGBA")
     marker_draw = ImageDraw.Draw(marker_layer, "RGBA")
+    if mode == "ambient-spark":
+        _paint_ambient_spark_frame(
+            glow_layer,
+            marker_layer,
+            points,
+            clusters,
+            bounds=bounds,
+            style=style,
+            frame_index=frame_index,
+            frame_count=frame_count,
+        )
+        frame.alpha_composite(glow_layer)
+        frame.alpha_composite(marker_layer)
+        return frame.convert("RGB")
     if mode == "all-points":
         activations = _all_point_activations(points)
     elif mode == "timeline":
@@ -166,7 +181,7 @@ def _compose_frame(
     elif mode == "constellation":
         activations = _constellation_activations(points, frame_index, frame_count)
     else:
-        raise ValueError(f"unknown mode {mode!r}; use all-points, timeline, cluster, or constellation")
+        raise ValueError(f"unknown mode {mode!r}; use all-points, ambient-spark, timeline, cluster, or constellation")
     for lat, lon, weight, intensity in activations:
         x, y = project_to_pixel(lon, lat, bounds=bounds, width=base.width, height=base.height)
         if x < -120 or y < -120 or x > base.width + 120 or y > base.height + 120:
@@ -218,6 +233,65 @@ def _constellation_activations(points: list[PhotoPoint], frame_index: int, frame
     return rows
 
 
+def _paint_ambient_spark_frame(
+    glow_layer: Image.Image,
+    marker_layer: Image.Image,
+    points: list[PhotoPoint],
+    clusters: list[Cluster],
+    *,
+    bounds: Bounds,
+    style: dict,
+    frame_index: int,
+    frame_count: int,
+) -> None:
+    glow = color(style, "activation", "glow_color")
+    marker = color(style, "activation", "marker_color")
+    outline = color(style, "activation", "marker_outline_color")
+    glow_draw = ImageDraw.Draw(glow_layer, "RGBA")
+    marker_draw = ImageDraw.Draw(marker_layer, "RGBA")
+    phase = frame_index / max(1, frame_count)
+    for index, cluster in enumerate(clusters):
+        x, y = project_to_pixel(cluster.longitude, cluster.latitude, bounds=bounds, width=glow_layer.width, height=glow_layer.height)
+        if x < -120 or y < -120 or x > glow_layer.width + 120 or y > glow_layer.height + 120:
+            continue
+        seed = _stable_units(f"cluster:{index}:{cluster.latitude:.6f}:{cluster.longitude:.6f}", 3)
+        pulse = 0.88 + 0.12 * math.sin(2.0 * math.pi * phase + seed[0] * math.tau)
+        radius = min(88.0, max(34.0, 28.0 + math.sqrt(cluster.count) * 11.0 + seed[1] * 18.0)) * pulse
+        alpha = int(22 + seed[2] * 18)
+        glow_draw.ellipse((x - radius, y - radius, x + radius, y + radius), fill=(*glow, alpha))
+    blurred_cluster = glow_layer.filter(ImageFilter.GaussianBlur(radius=14))
+    glow_layer.paste(blurred_cluster)
+
+    for index, point in enumerate(points):
+        seed = _stable_units(f"point:{index}:{point.path}:{point.latitude:.6f}:{point.longitude:.6f}", 8)
+        period = 28.0 + seed[0] * 48.0
+        point_phase = seed[1] * period
+        wave = (math.sin(math.tau * (frame_index + point_phase) / period) + 1.0) / 2.0
+        gate = _smoothstep(0.36, 0.92, wave)
+        if gate <= 0.02 and seed[2] > 0.22:
+            continue
+        min_intensity = 0.08 + seed[3] * 0.12
+        max_intensity = 0.38 + seed[4] * 0.38
+        intensity = min_intensity + (max_intensity - min_intensity) * gate
+        if intensity < 0.10:
+            continue
+        x, y = project_to_pixel(point.longitude, point.latitude, bounds=bounds, width=glow_layer.width, height=glow_layer.height)
+        jitter = 0.8
+        x += math.sin(math.tau * phase + seed[5] * math.tau) * jitter
+        y += math.cos(math.tau * phase + seed[6] * math.tau) * jitter
+        if x < -80 or y < -80 or x > glow_layer.width + 80 or y > glow_layer.height + 80:
+            continue
+        glow_radius = 12.0 + seed[7] * 40.0
+        core_radius = 1.8 + seed[2] * 3.0
+        glow_alpha = int(96 * intensity)
+        marker_alpha = int(205 * intensity)
+        glow_draw.ellipse((x - glow_radius, y - glow_radius, x + glow_radius, y + glow_radius), fill=(*glow, glow_alpha))
+        marker_draw.ellipse((x - core_radius - 0.9, y - core_radius - 0.9, x + core_radius + 0.9, y + core_radius + 0.9), fill=(*outline, int(marker_alpha * 0.45)))
+        marker_draw.ellipse((x - core_radius, y - core_radius, x + core_radius, y + core_radius), fill=(*marker, min(235, marker_alpha + 25)))
+    blurred_sparks = glow_layer.filter(ImageFilter.GaussianBlur(radius=7))
+    glow_layer.paste(blurred_sparks)
+
+
 def _draw_glow(
     glow_draw: ImageDraw.ImageDraw,
     marker_draw: ImageDraw.ImageDraw,
@@ -250,3 +324,20 @@ def _output_format(output: Path) -> str:
     if suffix == ".gif":
         return "gif"
     return ""
+
+
+def _stable_units(value: str, count: int) -> list[float]:
+    digest = hashlib.sha256(value.encode("utf-8")).digest()
+    units = []
+    for index in range(count):
+        start = (index * 4) % (len(digest) - 4)
+        raw = int.from_bytes(digest[start : start + 4], "big")
+        units.append(raw / 0xFFFFFFFF)
+    return units
+
+
+def _smoothstep(edge0: float, edge1: float, value: float) -> float:
+    if edge0 == edge1:
+        return 1.0 if value >= edge1 else 0.0
+    x = max(0.0, min(1.0, (value - edge0) / (edge1 - edge0)))
+    return x * x * (3.0 - 2.0 * x)

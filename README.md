@@ -24,12 +24,23 @@ travelspark /path/to/photos \
   --output travel.jpg
 ```
 
+Visual-first GIF preset:
+
+```bash
+travelspark /path/to/photos \
+  --scene-id world_8192 \
+  --map-style spark-night \
+  --storyboard-preset spark-drift \
+  --output travel.gif
+```
+
 PoC framing:
 
 - `cadis-map-render` owns stylish still-image rendering.
 - TravelSpark owns the Director/storyboard and export workflow.
 - `--effect none` uses the CADIS-rendered marked still frame directly.
 - `--effect glow` uses TravelSpark's current presentation effect layer.
+- `--storyboard-preset spark-drift` creates a quiet night-sky sparkle GIF.
 - Animated storyboards currently require `--effect glow` and `.gif` output.
 
 ## Install
@@ -66,18 +77,18 @@ To update an existing activated `.venv` after `git pull`, reinstall the
 TravelSpark wheel without touching already installed dependencies:
 
 ```bash
-python -m pip install --force-reinstall --no-deps wheels/cadis_map_render-0.3.32-py3-none-any.whl wheels/cadis_travel_spark-0.1.5-py3-none-any.whl
+python -m pip install --force-reinstall --no-deps wheels/cadis_map_render-0.3.32-py3-none-any.whl wheels/cadis_travel_spark-0.1.6-py3-none-any.whl
 ```
 
 If Pillow was accidentally reinstalled into a broken state, repair it first:
 
 ```bash
 python -m pip install --force-reinstall --no-cache-dir "Pillow>=10"
-python -m pip install --force-reinstall --no-deps wheels/cadis_map_render-0.3.32-py3-none-any.whl wheels/cadis_travel_spark-0.1.5-py3-none-any.whl
+python -m pip install --force-reinstall --no-deps wheels/cadis_map_render-0.3.32-py3-none-any.whl wheels/cadis_travel_spark-0.1.6-py3-none-any.whl
 ```
 
 Vendored wheels are pinned in `requirements.lock.txt`:
 
 - `cadis==0.9.0`
 - `cadis-map-render==0.3.32`
-- `cadis-travel-spark==0.1.5`
+- `cadis-travel-spark==0.1.6`

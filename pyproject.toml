@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cadis-travel-spark"
-version = "0.1.5"
-description = "Create animated travel map GIFs from local photo folders."
+version = "0.1.6"
+description = "Create semantic travel map presentations from local photo folders."
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "Apache-2.0"}

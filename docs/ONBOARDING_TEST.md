@@ -88,6 +88,39 @@ Expected report fields:
 
 Check that `travel.gif` exists and animates.
 
+## Visual Preset
+
+Run the first visual-first Director preset:
+
+```bash
+travelspark /path/to/photos \
+  --scene-id world_8192 \
+  --map-style spark-night \
+  --storyboard-preset spark-drift \
+  --output spark_drift.gif \
+  --report-json spark_drift_report.json
+```
+
+Expected report fields:
+
+```json
+{
+  "storyboard": "ambient-spark",
+  "storyboard_preset": "spark-drift",
+  "effect": "glow",
+  "output_format": "gif",
+  "base_map": {
+    "source": "cadis-map-render",
+    "render_type": "base_map",
+    "style_id": "spark-night",
+    "cadis_style_id": "memory_atlas_night_v1"
+  }
+}
+```
+
+Check that `spark_drift.gif` exists and has a soft, quiet night-sky sparkle
+feeling.
+
 ## CDN Mode
 
 Do at least one run without `--dataset-root`. This verifies the public map

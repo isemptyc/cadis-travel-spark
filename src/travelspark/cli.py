@@ -9,6 +9,7 @@ from .engine import DEFAULT_MAP_DATASET_CATALOG_ROOT, CadisMapRenderEngine, scen
 from .exif import export_points_json, extract_photo_points
 from .progress import Progress
 from .scope import cadis_country_lookup, filter_points_for_scene
+from .storyboard import load_storyboard_preset, storyboard_mode
 from .style import load_cadis_style_profile, load_style
 
 
@@ -18,7 +19,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--scene-id", required=True, help="CADIS map scene id, e.g. tw, world_8192, lon_env_europe.")
     parser.add_argument("--map-style", default="spark-night", help="Map style id, e.g. spark-night or puzzle-pale.")
     parser.add_argument("--output", type=Path, default=Path("travel.jpg"), help="Output path. .jpg/.png creates one frame; .gif creates an animated GIF when storyboard is animated.")
-    parser.add_argument("--storyboard", choices=["all-points", "timeline", "cluster", "constellation"], default="all-points")
+    parser.add_argument("--storyboard", choices=["all-points", "ambient-spark", "timeline", "cluster", "constellation"], default="all-points")
+    parser.add_argument("--storyboard-preset", choices=["spark-drift"], default=None, help="Built-in visual storyboard preset.")
     parser.add_argument("--mode", choices=["timeline", "cluster", "constellation"], default=None, help="Deprecated alias for --storyboard.")
     parser.add_argument("--effect", choices=["none", "glow"], default="none", help="Presentation effect layer. Use none for CADIS-rendered style fidelity.")
     parser.add_argument("--width", type=int, default=1280)
@@ -47,11 +49,19 @@ def main(argv: list[str] | None = None) -> int:
         raise SystemExit("--width/--height are too small")
     if args.frames < 2:
         raise SystemExit("--frames must be at least 2")
-    storyboard = args.mode or args.storyboard
-    output_format = _output_format(args.output)
+    try:
+        storyboard_preset = load_storyboard_preset(args.storyboard_preset)
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from exc
+    storyboard = storyboard_mode(storyboard_preset, args.mode or args.storyboard)
+    effect = "glow" if storyboard_preset is not None and args.effect == "none" else args.effect
+    output = args.output
+    if storyboard_preset is not None and output == Path("travel.jpg"):
+        output = Path("travel.gif")
+    output_format = _output_format(output)
     if output_format not in {"jpeg", "png", "gif"}:
         raise SystemExit("--output must end with .jpg, .jpeg, .png, or .gif")
-    if storyboard != "all-points" and args.effect == "none":
+    if storyboard != "all-points" and effect == "none":
         raise SystemExit("--effect glow is required for animated storyboard modes until layered hand-off is available")
     if storyboard != "all-points" and output_format != "gif":
         raise SystemExit("animated storyboard modes require .gif output")
@@ -93,7 +103,14 @@ def main(argv: list[str] | None = None) -> int:
         progress.say(f"writing points JSON: {args.points_json}")
         export_points_json(scope.kept, args.points_json)
 
-    report = _preflight_report(args=args, scene=scene, total_count=len(points), scope=scope)
+    report = _preflight_report(
+        args=args,
+        scene=scene,
+        total_count=len(points),
+        scope=scope,
+        storyboard=storyboard,
+        effect=effect,
+    )
     if args.preflight_only:
         _write_report(args.report_json, report)
         print(json.dumps(report, ensure_ascii=False, indent=2))
@@ -101,7 +118,7 @@ def main(argv: list[str] | None = None) -> int:
 
     style = load_style(args.style, style_id=args.map_style)
     cadis_style_profile = load_cadis_style_profile(args.style)
-    if args.effect == "none":
+    if effect == "none":
         base_map = engine.render_marked_map(
             points=scope.kept,
             map_style=args.map_style,
@@ -112,7 +129,7 @@ def main(argv: list[str] | None = None) -> int:
         )
         render_report = render_still(
             scope.kept,
-            args.output,
+            output,
             bounds=base_map.bounds,
             style=style,
             base_map=base_map.image,
@@ -132,7 +149,7 @@ def main(argv: list[str] | None = None) -> int:
         )
         render_report = render_still(
             scope.kept,
-            args.output,
+            output,
             bounds=base_map.bounds,
             style=style,
             base_map=base_map.image,
@@ -152,7 +169,7 @@ def main(argv: list[str] | None = None) -> int:
         )
         render_report = render_gif(
             scope.kept,
-            args.output,
+            output,
             bounds=base_map.bounds,
             style=style,
             base_map=base_map.image,
@@ -166,6 +183,8 @@ def main(argv: list[str] | None = None) -> int:
             frame_progress=progress.step,
         )
         render_report["effect"] = "glow"
+    if output != args.output:
+        render_report["output"] = str(output)
     report |= render_report
     report["base_map"] = base_map.metadata
     _write_report(args.report_json, report)
@@ -173,13 +192,22 @@ def main(argv: list[str] | None = None) -> int:
     return 0
 
 
-def _preflight_report(*, args: argparse.Namespace, scene: dict, total_count: int, scope) -> dict:
+def _preflight_report(
+    *,
+    args: argparse.Namespace,
+    scene: dict,
+    total_count: int,
+    scope,
+    storyboard: str,
+    effect: str,
+) -> dict:
     return {
         "photos_path": str(args.photos_path),
         "scene_id": args.scene_id,
         "map_style": args.map_style,
-        "storyboard": args.mode or args.storyboard,
-        "effect": args.effect,
+        "storyboard": storyboard,
+        "storyboard_preset": args.storyboard_preset,
+        "effect": effect,
         "scene": scene,
         "scope_policy": args.scope_policy,
         "point_count_total": total_count,

@@ -42,9 +42,15 @@ TravelSpark owns semantic presentation:
 The PoC storyboard names are:
 
 - `all-points`: one presentation frame containing all kept GPS points.
+- `ambient-spark`: animated visual atmosphere with quiet deterministic spark twinkles.
 - `timeline`: animated timeline ordered by photo timestamp/path.
 - `cluster`: animated cluster pulse.
 - `constellation`: animated point shimmer.
+
+The first built-in visual preset is:
+
+- `spark-drift`: maps to `ambient-spark`, defaults to GIF, and aims for a
+  quiet night-sky sparkle feeling without strong timeline semantics.
 
 The legacy `--mode` flag remains as a temporary alias for animated storyboard
 names. New usage should prefer `--storyboard`.
