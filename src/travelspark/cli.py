@@ -9,7 +9,7 @@ from .cluster import cluster_points
 from .engine import DEFAULT_MAP_DATASET_CATALOG_ROOT, CadisMapRenderEngine, scene_bounds, scene_country_iso
 from .exif import export_points_json, extract_photo_points
 from .progress import Progress
-from .scope import cadis_country_lookup, filter_points_for_scene
+from .scope import cadis_country_lookup, cadis_country_lookup_many, filter_points_for_scene
 from .storyboard import load_storyboard_preset, storyboard_mode
 from .style import load_cadis_style_profile, load_style
 from .timeline_scene import write_timeline_scene_package
@@ -96,17 +96,31 @@ def main(argv: list[str] | None = None) -> int:
     scene = engine.scene_metadata()
     bounds = scene_bounds(scene)
     country_lookup = None
+    country_lookup_many = None
     country_iso = scene_country_iso(args.scene_id)
     in_bounds_count = sum(1 for point in points if bounds.contains(point.latitude, point.longitude))
-    if args.country_filter == "yes" or _auto_country_lookup_enabled(args.country_filter, country_iso=country_iso, in_bounds_count=in_bounds_count):
-        country_lookup = cadis_country_lookup()
-        if country_lookup is None and args.country_filter == "yes":
-            raise SystemExit("cadis lookup is unavailable; install the pinned cadis wheel or use --country-filter no")
-    elif args.country_filter == "auto" and country_iso is not None and in_bounds_count > 5000:
-        progress.say(
-            f"skipping CADIS country lookup in auto mode for {in_bounds_count} in-bounds point(s); "
-            "use --country-filter yes for strict country polygon filtering"
-        )
+    if args.country_filter != "no" and country_iso is not None:
+        country_lookup_many = cadis_country_lookup_many(allowed_iso2=[country_iso])
+        has_batch_lookup = country_lookup_many is not None
+        if args.country_filter == "yes" or _auto_country_lookup_enabled(
+            args.country_filter,
+            country_iso=country_iso,
+            in_bounds_count=in_bounds_count,
+            has_batch_lookup=has_batch_lookup,
+        ):
+            if country_lookup_many is not None:
+                progress.say(f"using CADIS lookup_many country filter for {in_bounds_count} in-bounds point(s)")
+            else:
+                country_lookup = cadis_country_lookup()
+                if country_lookup is None and args.country_filter == "yes":
+                    raise SystemExit("cadis lookup is unavailable; install the pinned cadis wheel or use --country-filter no")
+        else:
+            country_lookup_many = None
+            if args.country_filter == "auto" and in_bounds_count > 5000:
+                progress.say(
+                    f"skipping CADIS scalar country lookup in auto mode for {in_bounds_count} in-bounds point(s) "
+                    "because cadis lookup_many is unavailable; use --country-filter yes for scalar strict country filtering"
+                )
 
     progress.say("filtering points for scene scope")
     scope = filter_points_for_scene(
@@ -115,6 +129,7 @@ def main(argv: list[str] | None = None) -> int:
         scene_country_iso=country_iso,
         policy=args.scope_policy,
         country_lookup=country_lookup,
+        country_lookup_many=country_lookup_many,
         progress=progress.step,
     )
     progress.say(f"scene scope kept {len(scope.kept)} point(s), filtered {len(scope.skipped)}")
@@ -283,8 +298,14 @@ def _output_format(output: Path) -> str:
 
 
 
-def _auto_country_lookup_enabled(policy: str, *, country_iso: str | None, in_bounds_count: int) -> bool:
-    return policy == "auto" and country_iso is not None and in_bounds_count <= 5000
+def _auto_country_lookup_enabled(
+    policy: str,
+    *,
+    country_iso: str | None,
+    in_bounds_count: int,
+    has_batch_lookup: bool = False,
+) -> bool:
+    return policy == "auto" and country_iso is not None and (has_batch_lookup or in_bounds_count <= 5000)
 
 def _presentation_targets(*, output: Path | None, export_scene: Path | None, storyboard: str, storyboard_preset: str | None) -> tuple[Path | None, Path | None]:
     if storyboard_preset is not None and output is None and export_scene is None:

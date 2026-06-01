@@ -39,8 +39,12 @@ def test_explicit_spark_drift_gif_output_is_respected():
     assert export_scene is None
 
 
-def test_auto_country_lookup_is_disabled_for_large_country_scene_sets():
+def test_auto_country_lookup_uses_scalar_only_for_small_country_scene_sets():
     assert _auto_country_lookup_enabled("auto", country_iso="TW", in_bounds_count=5000) is True
     assert _auto_country_lookup_enabled("auto", country_iso="TW", in_bounds_count=5001) is False
     assert _auto_country_lookup_enabled("auto", country_iso=None, in_bounds_count=1) is False
     assert _auto_country_lookup_enabled("no", country_iso="TW", in_bounds_count=1) is False
+
+
+def test_auto_country_lookup_uses_batch_for_large_country_scene_sets():
+    assert _auto_country_lookup_enabled("auto", country_iso="TW", in_bounds_count=5001, has_batch_lookup=True) is True
