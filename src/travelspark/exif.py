@@ -26,6 +26,20 @@ PHOTO_SUFFIXES = {
 GPS_TAG_ID = next(k for k, v in ExifTags.TAGS.items() if v == "GPSInfo")
 GPS_TAGS = {v: k for k, v in ExifTags.GPSTAGS.items()}
 
+EXIFTOOL_BASE_ARGS = ("-json", "-n")
+EXIFTOOL_QUICK_ARGS = ("-fast2",)
+EXIFTOOL_GPS_DATETIME_TAGS = (
+    "-GPSLatitude",
+    "-GPSLongitude",
+    "-DateTimeOriginal",
+    "-SubSecDateTimeOriginal",
+    "-OffsetTimeOriginal",
+    "-CreateDate",
+    "-ModifyDate",
+)
+EXIFTOOL_MAX_BATCH_FILES = 500
+EXIFTOOL_MAX_COMMAND_BYTES = 120_000
+
 
 @dataclass(frozen=True)
 class PhotoPoint:
@@ -57,10 +71,16 @@ def extract_photo_points(
     exiftool_path = shutil.which("exiftool")
     if use_exiftool in {"auto", "yes"} and exiftool_path:
         if status is not None:
-            status("reading EXIF GPS with exiftool")
-        points = _extract_with_exiftool(paths, skip_paths=set(), progress=progress)
+            status("reading EXIF GPS with exiftool quick mode")
+        points = _extract_with_exiftool(paths, skip_paths=set(), progress=progress, mode="quick")
         seen = {point.path.resolve() for point in points}
         missing = [path for path in paths if path.resolve() not in seen]
+        if missing:
+            if status is not None:
+                status(f"running exiftool full fallback for {len(missing)} files")
+            points.extend(_extract_with_exiftool(missing, skip_paths=seen, progress=progress, mode="full"))
+            seen = {point.path.resolve() for point in points}
+            missing = [path for path in paths if path.resolve() not in seen]
         if missing:
             if status is not None:
                 status(f"running Pillow fallback for {len(missing)} files")
@@ -123,8 +143,9 @@ def _extract_with_exiftool(
     *,
     skip_paths: set[Path],
     progress: Callable[[str, int, int], None] | None = None,
+    mode: str = "quick",
 ) -> list[PhotoPoint]:
-    rows = _run_exiftool(list(paths), progress=progress)
+    rows = _run_exiftool(list(paths), progress=progress, mode=mode)
     points: list[PhotoPoint] = []
     for row in rows:
         source = row.get("SourceFile")
@@ -142,7 +163,13 @@ def _extract_with_exiftool(
                 path=path,
                 latitude=lat,
                 longitude=lon,
-                taken_at=_parse_datetime(row.get("SubSecDateTimeOriginal") or row.get("DateTimeOriginal")),
+                taken_at=_parse_datetime(
+                    row.get("SubSecDateTimeOriginal")
+                    or row.get("DateTimeOriginal")
+                    or row.get("CreateDate")
+                    or row.get("ModifyDate"),
+                    offset=row.get("OffsetTimeOriginal"),
+                ),
             )
         )
     return points
@@ -152,22 +179,22 @@ def _run_exiftool(
     paths: list[Path],
     *,
     progress: Callable[[str, int, int], None] | None = None,
+    mode: str = "quick",
 ) -> list[dict]:
     rows: list[dict] = []
-    batch_size = 300
-    for start in range(0, len(paths), batch_size):
-        batch = paths[start : start + batch_size]
+    if not paths:
+        return rows
+    extra_args = EXIFTOOL_QUICK_ARGS if mode == "quick" else ()
+    label = "parsing EXIF GPS with exiftool quick mode" if mode == "quick" else "parsing EXIF GPS with exiftool full mode"
+    for batch, completed in _exiftool_batches(paths, extra_args=extra_args):
         if progress is not None:
-            progress("parsing EXIF GPS with exiftool", min(start + len(batch), len(paths)), len(paths))
+            progress(label, completed, len(paths))
         result = subprocess.run(
             [
                 "exiftool",
-                "-json",
-                "-n",
-                "-GPSLatitude",
-                "-GPSLongitude",
-                "-DateTimeOriginal",
-                "-SubSecDateTimeOriginal",
+                *EXIFTOOL_BASE_ARGS,
+                *extra_args,
+                *EXIFTOOL_GPS_DATETIME_TAGS,
                 *[str(path) for path in batch],
             ],
             check=False,
@@ -179,6 +206,31 @@ def _run_exiftool(
             if isinstance(payload, list):
                 rows.extend(row for row in payload if isinstance(row, dict))
     return rows
+
+
+def _exiftool_batches(paths: list[Path], *, extra_args: tuple[str, ...]) -> list[tuple[list[Path], int]]:
+    fixed_args = ["exiftool", *EXIFTOOL_BASE_ARGS, *extra_args, *EXIFTOOL_GPS_DATETIME_TAGS]
+    fixed_bytes = sum(len(arg.encode("utf-8")) + 1 for arg in fixed_args)
+    batches: list[tuple[list[Path], int]] = []
+    current: list[Path] = []
+    current_bytes = fixed_bytes
+    completed = 0
+    for path in paths:
+        path_arg = str(path)
+        path_bytes = len(path_arg.encode("utf-8")) + 1
+        would_exceed_count = len(current) >= EXIFTOOL_MAX_BATCH_FILES
+        would_exceed_bytes = bool(current) and current_bytes + path_bytes > EXIFTOOL_MAX_COMMAND_BYTES
+        if would_exceed_count or would_exceed_bytes:
+            completed += len(current)
+            batches.append((current, completed))
+            current = []
+            current_bytes = fixed_bytes
+        current.append(path)
+        current_bytes += path_bytes
+    if current:
+        completed += len(current)
+        batches.append((current, completed))
+    return batches
 
 
 def _gps_coord(gps: dict, value_tag: int, ref_tag: int) -> float | None:
@@ -207,17 +259,53 @@ def _taken_at_from_exif(exif: Image.Exif) -> datetime | None:
     return None
 
 
-def _parse_datetime(value: object) -> datetime | None:
+def _parse_datetime(value: object, *, offset: object = None) -> datetime | None:
     if not value:
         return None
     text = str(value).strip()
-    for fmt in ("%Y:%m:%d %H:%M:%S%z", "%Y:%m:%d %H:%M:%S", "%Y-%m-%d %H:%M:%S%z", "%Y-%m-%d %H:%M:%S"):
-        try:
-            parsed = datetime.strptime(text, fmt)
-            return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
-        except ValueError:
-            pass
+    normalized_offset = _normalize_offset(offset)
+    candidates = []
+    if normalized_offset is not None and not _has_datetime_offset(text):
+        candidates.append(f"{text}{normalized_offset}")
+    candidates.append(text)
+    for candidate in candidates:
+        for fmt in (
+            "%Y:%m:%d %H:%M:%S.%f%z",
+            "%Y:%m:%d %H:%M:%S%z",
+            "%Y:%m:%d %H:%M:%S.%f",
+            "%Y:%m:%d %H:%M:%S",
+            "%Y-%m-%d %H:%M:%S.%f%z",
+            "%Y-%m-%d %H:%M:%S%z",
+            "%Y-%m-%d %H:%M:%S.%f",
+            "%Y-%m-%d %H:%M:%S",
+        ):
+            try:
+                parsed = datetime.strptime(candidate, fmt)
+                return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+            except ValueError:
+                pass
     return None
+
+
+def _normalize_offset(value: object) -> str | None:
+    if not value:
+        return None
+    text = str(value).strip().upper()
+    if text == "Z":
+        return "+00:00"
+    if len(text) == 5 and text[0] in "+-" and text[1:].isdigit():
+        return f"{text[:3]}:{text[3:]}"
+    if len(text) == 6 and text[0] in "+-" and text[3] == ":" and text[1:3].isdigit() and text[4:].isdigit():
+        return text
+    return None
+
+
+def _has_datetime_offset(text: str) -> bool:
+    candidate = text.strip().upper()
+    if candidate.endswith("Z"):
+        return True
+    tail = candidate[-6:]
+    return len(tail) == 6 and tail[0] in "+-" and tail[3] == ":" and tail[1:3].isdigit() and tail[4:].isdigit()
 
 
 def _coerce_float(value: object) -> float | None:

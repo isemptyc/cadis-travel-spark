@@ -8,9 +8,11 @@ map rendering is expected to come from `cadis-map-render`; CADIS country lookup
 is used as an optional preflight/filter helper.
 
 GPS extraction defaults to `--use-exiftool auto`: TravelSpark prefers
-`exiftool` when it is available, then falls back to Pillow only for files
-`exiftool` misses or when `exiftool` is not on `PATH`. Use `--use-exiftool yes`
-to require `exiftool`, or `--use-exiftool no` to force Pillow-only parsing.
+`exiftool` when it is available. It first runs an EXIFTool quick pass
+(`-fast2`) for GPS and datetime tags only, then runs full EXIFTool only for
+files missed by quick mode, and finally falls back to Pillow for any remaining
+files or when `exiftool` is not on `PATH`. Use `--use-exiftool yes` to require
+`exiftool`, or `--use-exiftool no` to force Pillow-only parsing.
 
 ## Contract
 
@@ -96,18 +98,18 @@ To update an existing activated `.venv` after `git pull`, reinstall the
 TravelSpark wheel without touching already installed dependencies:
 
 ```bash
-python -m pip install --force-reinstall --no-deps wheels/cadis_map_render-0.3.32-py3-none-any.whl wheels/cadis_travel_spark-0.1.14-py3-none-any.whl
+python -m pip install --force-reinstall --no-deps wheels/cadis_map_render-0.3.32-py3-none-any.whl wheels/cadis_travel_spark-0.1.15-py3-none-any.whl
 ```
 
 If Pillow was accidentally reinstalled into a broken state, repair it first:
 
 ```bash
 python -m pip install --force-reinstall --no-cache-dir "Pillow>=10,<12.2"
-python -m pip install --force-reinstall --no-deps wheels/cadis_map_render-0.3.32-py3-none-any.whl wheels/cadis_travel_spark-0.1.14-py3-none-any.whl
+python -m pip install --force-reinstall --no-deps wheels/cadis_map_render-0.3.32-py3-none-any.whl wheels/cadis_travel_spark-0.1.15-py3-none-any.whl
 ```
 
 Vendored wheels are pinned in `requirements.lock.txt`:
 
 - `cadis==0.9.0`
 - `cadis-map-render==0.3.32`
-- `cadis-travel-spark==0.1.14`
+- `cadis-travel-spark==0.1.15`
