@@ -25,7 +25,10 @@ def test_write_timeline_scene_package_exports_json_assets_and_player(tmp_path: P
     )
     report = write_timeline_scene_package(
         scene_json=tmp_path / "timeline-scene.json",
-        points=[PhotoPoint(tmp_path / "a.jpg", 25.04, 121.56)],
+        points=[
+            PhotoPoint(tmp_path / "a.jpg", 25.04, 121.56),
+            PhotoPoint(tmp_path / "b.jpg", 25.041, 121.561),
+        ],
         base_map=base_map,
         style=load_style(None, style_id="spark-night"),
         storyboard="ambient-spark",
@@ -46,6 +49,8 @@ def test_write_timeline_scene_package_exports_json_assets_and_player(tmp_path: P
     player_text = (tmp_path / "player.html").read_text(encoding="utf-8")
     assert '"profile": "cadis.travel_spark.timeline_scene"' in scene_text
     assert '"type": "ambient-spark"' in scene_text
+    assert '"source_point_count": 2' in scene_text
+    assert '"spark_site_count": 1' in scene_text
     assert "timeline-scene_assets/basemap.png" in player_text
     assert "16 / 9" not in player_text
     assert "resizeCanvasElement" in player_text

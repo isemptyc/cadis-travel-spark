@@ -9,7 +9,7 @@ from typing import Any
 
 from PIL import Image
 
-from .animation import _stable_units
+from .animation import _ambient_radius_scale, _stable_units
 from .cluster import cluster_points
 from .engine import BaseMap
 from .exif import PhotoPoint
@@ -121,6 +121,7 @@ def write_player_html(player_html: Path, *, scene: dict[str, Any]) -> None:
 
 
 def _ambient_spark_effects(points, clusters, *, base_map: BaseMap, width: int, height: int) -> dict[str, Any]:
+    radius_scale = _ambient_radius_scale(base_map.bounds)
     cluster_rows = []
     for index, cluster in enumerate(clusters):
         x, y = project_to_pixel(cluster.longitude, cluster.latitude, bounds=base_map.bounds, width=width, height=height)
@@ -131,32 +132,39 @@ def _ambient_spark_effects(points, clusters, *, base_map: BaseMap, width: int, h
                 "y": y,
                 "count": cluster.count,
                 "phase": seed[0] * math.tau,
-                "radius": min(56.0, max(24.0, 18.0 + math.sqrt(cluster.count) * 5.0 + seed[1] * 8.0)),
-                "alpha": int(8 + seed[2] * 6),
+                "radius": min(56.0, max(24.0, 18.0 + math.sqrt(cluster.count) * 5.0 + seed[1] * 8.0)) * radius_scale,
+                "alpha": int((8 + seed[2] * 6) * radius_scale),
             }
         )
     point_rows = []
-    for index, point in enumerate(points):
-        x, y = project_to_pixel(point.longitude, point.latitude, bounds=base_map.bounds, width=width, height=height)
-        seed = _stable_units(f"point:{index}:{point.path}:{point.latitude:.6f}:{point.longitude:.6f}", 8)
+    # Use clustered spark sites rather than raw photo rows.  This keeps
+    # 25k-photo areas from becoming a single massive glow in the web player.
+    for index, cluster in enumerate(clusters):
+        x, y = project_to_pixel(cluster.longitude, cluster.latitude, bounds=base_map.bounds, width=width, height=height)
+        seed = _stable_units(f"site:{index}:{cluster.count}:{cluster.latitude:.6f}:{cluster.longitude:.6f}", 8)
+        period_frames = 72.0 + seed[0] * 96.0
         point_rows.append(
             {
                 "x": x,
                 "y": y,
-                "source": str(point.path),
-                "period_ms": int(round((72.0 + seed[0] * 96.0) * 1000 / 18)),
-                "phase_ms": int(round(seed[1] * (72.0 + seed[0] * 96.0) * 1000 / 18)),
+                "count": cluster.count,
+                "source": str(cluster.members[0].path) if cluster.members else None,
+                "period_ms": int(round(period_frames * 1000 / 18)),
+                "phase_ms": int(round(seed[1] * period_frames * 1000 / 18)),
                 "min_intensity": 0.04 + seed[3] * 0.06,
                 "max_intensity": 0.22 + seed[4] * 0.28,
-                "core_radius": 0.8 + seed[2] * 1.4,
-                "glow_radius": 8.0 + seed[7] * 22.0,
+                "core_radius": max(0.65, (0.8 + seed[2] * 1.4) * math.sqrt(radius_scale)),
+                "glow_radius": (8.0 + seed[7] * 22.0) * radius_scale,
                 "jitter_phase_x": seed[5] * math.tau,
                 "jitter_phase_y": seed[6] * math.tau,
-                "jitter_radius": 0.45,
+                "jitter_radius": 0.45 * radius_scale,
             }
         )
     return {
         "type": "ambient-spark",
+        "source_point_count": len(points),
+        "spark_site_count": len(point_rows),
+        "radius_scale": radius_scale,
         "clusters": cluster_rows,
         "points": point_rows,
     }

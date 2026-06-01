@@ -249,20 +249,26 @@ def _paint_ambient_spark_frame(
     outline = color(style, "activation", "marker_outline_color")
     glow_draw = ImageDraw.Draw(glow_layer, "RGBA")
     phase = frame_index / max(1, frame_count)
+    radius_scale = _ambient_radius_scale(bounds)
+    cluster_blur = max(3, int(round(7 * radius_scale)))
+    spark_blur = max(2, int(round(5 * radius_scale)))
     for index, cluster in enumerate(clusters):
         x, y = project_to_pixel(cluster.longitude, cluster.latitude, bounds=bounds, width=glow_layer.width, height=glow_layer.height)
         if x < -120 or y < -120 or x > glow_layer.width + 120 or y > glow_layer.height + 120:
             continue
         seed = _stable_units(f"cluster:{index}:{cluster.latitude:.6f}:{cluster.longitude:.6f}", 3)
         pulse = 0.96 + 0.04 * math.sin(2.0 * math.pi * phase + seed[0] * math.tau)
-        radius = min(56.0, max(24.0, 18.0 + math.sqrt(cluster.count) * 5.0 + seed[1] * 8.0)) * pulse
-        alpha = int(8 + seed[2] * 6)
+        radius = min(56.0, max(24.0, 18.0 + math.sqrt(cluster.count) * 5.0 + seed[1] * 8.0)) * radius_scale * pulse
+        alpha = int((8 + seed[2] * 6) * radius_scale)
         glow_draw.ellipse((x - radius, y - radius, x + radius, y + radius), fill=(*glow, alpha))
-    blurred_cluster = glow_layer.filter(ImageFilter.GaussianBlur(radius=7))
+    blurred_cluster = glow_layer.filter(ImageFilter.GaussianBlur(radius=cluster_blur))
     glow_layer.paste(blurred_cluster)
 
-    for index, point in enumerate(points):
-        seed = _stable_units(f"point:{index}:{point.path}:{point.latitude:.6f}:{point.longitude:.6f}", 8)
+    # Ambient spark should not render one animated glow per photo.  In dense
+    # libraries that turns a country into a giant blob.  Use one spark site per
+    # geographic cluster; the cluster glow above still communicates density.
+    for index, cluster in enumerate(clusters):
+        seed = _stable_units(f"site:{index}:{cluster.count}:{cluster.latitude:.6f}:{cluster.longitude:.6f}", 8)
         period = 72.0 + seed[0] * 96.0
         point_phase = seed[1] * period
         wave = (math.sin(math.tau * (frame_index + point_phase) / period) + 1.0) / 2.0
@@ -274,20 +280,39 @@ def _paint_ambient_spark_frame(
         intensity = min_intensity + (max_intensity - min_intensity) * gate
         if intensity < 0.08:
             continue
-        x, y = project_to_pixel(point.longitude, point.latitude, bounds=bounds, width=glow_layer.width, height=glow_layer.height)
-        jitter = 0.45
+        x, y = project_to_pixel(cluster.longitude, cluster.latitude, bounds=bounds, width=glow_layer.width, height=glow_layer.height)
+        jitter = 0.45 * radius_scale
         x += math.sin(math.tau * phase + seed[5] * math.tau) * jitter
         y += math.cos(math.tau * phase + seed[6] * math.tau) * jitter
         if x < -80 or y < -80 or x > glow_layer.width + 80 or y > glow_layer.height + 80:
             continue
-        glow_radius = 8.0 + seed[7] * 22.0
-        core_radius = 0.8 + seed[2] * 1.4
-        glow_alpha = int(70 * intensity)
+        glow_radius = (8.0 + seed[7] * 22.0) * radius_scale
+        core_radius = max(0.65, (0.8 + seed[2] * 1.4) * math.sqrt(radius_scale))
+        glow_alpha = int(70 * intensity * radius_scale)
         marker_alpha = int(155 * intensity)
         glow_draw.ellipse((x - glow_radius, y - glow_radius, x + glow_radius, y + glow_radius), fill=(*glow, glow_alpha))
         _draw_soft_pinpoint(marker_layer, x, y, core_radius, marker, outline, marker_alpha)
-    blurred_sparks = glow_layer.filter(ImageFilter.GaussianBlur(radius=5))
+    blurred_sparks = glow_layer.filter(ImageFilter.GaussianBlur(radius=spark_blur))
     glow_layer.paste(blurred_sparks)
+
+
+def _ambient_radius_scale(bounds: Bounds) -> float:
+    """Return a screen-space glow scale for ambient spark.
+
+    Spark radii that look good on a city or country crop become continent-sized
+    on a world map.  Scale radii by longitude span so global scenes keep sparks
+    compact while regional scenes retain the soft glow.
+    """
+    lon_span = max(0.1, bounds.max_lon - bounds.min_lon)
+    if lon_span >= 240:
+        return 0.38
+    if lon_span >= 120:
+        return 0.48
+    if lon_span >= 70:
+        return 0.62
+    if lon_span >= 35:
+        return 0.78
+    return 1.0
 
 
 def _draw_soft_pinpoint(
