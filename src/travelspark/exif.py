@@ -49,6 +49,12 @@ class PhotoPoint:
     taken_at: datetime | None = None
 
 
+@dataclass(frozen=True)
+class ExiftoolScan:
+    points: list[PhotoPoint]
+    row_paths: set[Path]
+
+
 def find_photo_files(folder: Path) -> list[Path]:
     if not folder.is_dir():
         raise ValueError(f"input folder does not exist or is not a directory: {folder}")
@@ -72,19 +78,22 @@ def extract_photo_points(
     if use_exiftool in {"auto", "yes"} and exiftool_path:
         if status is not None:
             status("reading EXIF GPS with exiftool quick mode")
-        points = _extract_with_exiftool(paths, skip_paths=set(), progress=progress, mode="quick")
+        quick_scan = _scan_with_exiftool(paths, skip_paths=set(), progress=progress, mode="quick")
+        points = list(quick_scan.points)
         seen = {point.path.resolve() for point in points}
-        missing = [path for path in paths if path.resolve() not in seen]
-        if missing:
+        processed = set(quick_scan.row_paths)
+        missed_by_exiftool = [path for path in paths if path.resolve() not in processed]
+        if missed_by_exiftool:
             if status is not None:
-                status(f"running exiftool full fallback for {len(missing)} files")
-            points.extend(_extract_with_exiftool(missing, skip_paths=seen, progress=progress, mode="full"))
-            seen = {point.path.resolve() for point in points}
-            missing = [path for path in paths if path.resolve() not in seen]
-        if missing:
+                status(f"running exiftool full fallback for {len(missed_by_exiftool)} files")
+            full_scan = _scan_with_exiftool(missed_by_exiftool, skip_paths=seen, progress=progress, mode="full")
+            points.extend(full_scan.points)
+            processed.update(full_scan.row_paths)
+            missed_by_exiftool = [path for path in paths if path.resolve() not in processed]
+        if missed_by_exiftool:
             if status is not None:
-                status(f"running Pillow fallback for {len(missing)} files")
-            points.extend(_extract_with_pillow(missing, progress=progress))
+                status(f"running Pillow fallback for {len(missed_by_exiftool)} files")
+            points.extend(_extract_with_pillow(missed_by_exiftool, progress=progress))
     elif use_exiftool == "yes":
         raise RuntimeError("exiftool is required by --use-exiftool yes but was not found on PATH")
     else:
@@ -145,14 +154,27 @@ def _extract_with_exiftool(
     progress: Callable[[str, int, int], None] | None = None,
     mode: str = "quick",
 ) -> list[PhotoPoint]:
+    return _scan_with_exiftool(paths, skip_paths=skip_paths, progress=progress, mode=mode).points
+
+
+def _scan_with_exiftool(
+    paths: Iterable[Path],
+    *,
+    skip_paths: set[Path],
+    progress: Callable[[str, int, int], None] | None = None,
+    mode: str = "quick",
+) -> ExiftoolScan:
     rows = _run_exiftool(list(paths), progress=progress, mode=mode)
     points: list[PhotoPoint] = []
+    row_paths: set[Path] = set()
     for row in rows:
         source = row.get("SourceFile")
         if not isinstance(source, str):
             continue
         path = Path(source)
-        if path.resolve() in skip_paths:
+        resolved = path.resolve()
+        row_paths.add(resolved)
+        if resolved in skip_paths:
             continue
         lat = _coerce_float(row.get("GPSLatitude"))
         lon = _coerce_float(row.get("GPSLongitude"))
@@ -172,7 +194,7 @@ def _extract_with_exiftool(
                 ),
             )
         )
-    return points
+    return ExiftoolScan(points=points, row_paths=row_paths)
 
 
 def _run_exiftool(
