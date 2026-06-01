@@ -43,6 +43,7 @@ def filter_points_for_scene(
     skipped_reasons: Counter[str] = Counter()
     detected_countries: Counter[str] = Counter()
     expected_country = scene_country_iso.strip().upper() if isinstance(scene_country_iso, str) and scene_country_iso.strip() else None
+    require_country_match = expected_country is not None and (country_lookup is not None or country_lookup_many is not None)
 
     in_bounds: list[PhotoPoint] = []
     total = len(points)
@@ -90,7 +91,13 @@ def filter_points_for_scene(
     for point, country_iso in zip(in_bounds, country_isos):
         if country_iso:
             detected_countries[country_iso.strip().upper()] += 1
-        reason = _skip_reason(point, bounds=bounds, expected_country=expected_country, country_iso=country_iso)
+        reason = _skip_reason(
+            point,
+            bounds=bounds,
+            expected_country=expected_country,
+            country_iso=country_iso,
+            require_country_match=require_country_match,
+        )
         if reason is None:
             kept.append(point)
         else:
@@ -240,9 +247,12 @@ def _skip_reason(
     bounds: Bounds,
     expected_country: str | None,
     country_iso: str | None,
+    require_country_match: bool = False,
 ) -> str | None:
     if not bounds.contains(point.latitude, point.longitude):
         return "outside_bounds"
+    if require_country_match and expected_country and not country_iso:
+        return "country_unresolved"
     if expected_country and country_iso and country_iso.strip().upper() != expected_country:
         return f"country_mismatch:{country_iso.strip().upper()}"
     return None

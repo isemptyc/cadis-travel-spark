@@ -96,6 +96,23 @@ def test_batch_country_lookup_receives_only_in_bounds_points():
     assert result.detected_countries == {"TW": 1, "JP": 1}
 
 
+def test_active_country_lookup_requires_resolved_country_match():
+    tw_point = PhotoPoint(Path("tw.jpg"), 25.0, 121.5)
+    unresolved_point = PhotoPoint(Path("okinawa.jpg"), 26.2, 127.7)
+
+    result = filter_points_for_scene(
+        [tw_point, unresolved_point],
+        bounds=Bounds(116.0, 20.0, 132.0, 36.0),
+        scene_country_iso="TW",
+        country_lookup_many=lambda batch: ["TW", None],
+    )
+
+    assert result.kept == [tw_point]
+    assert result.skipped == [unresolved_point]
+    assert result.skipped_reasons == {"country_unresolved": 1}
+    assert result.detected_countries == {"TW": 1}
+
+
 def test_batch_country_lookup_uses_bounded_cadis_batches():
     points = [PhotoPoint(Path(f"tw-{index}.jpg"), 25.0 + index * 0.001, 121.5) for index in range(5)]
     calls = []
