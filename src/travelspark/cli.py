@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 
 from .animation import render_gif, render_still
+from .cluster import cluster_points
 from .engine import DEFAULT_MAP_DATASET_CATALOG_ROOT, CadisMapRenderEngine, scene_bounds, scene_country_iso
 from .exif import export_points_json, extract_photo_points
 from .progress import Progress
@@ -19,7 +20,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("photos_path", type=Path, help="Folder containing photos.")
     parser.add_argument("--scene-id", required=True, help="CADIS map scene id, e.g. tw, world_8192, lon_env_europe.")
     parser.add_argument("--map-style", default="spark-night", help="Map style id, e.g. spark-night or puzzle-pale.")
-    parser.add_argument("--output", type=Path, default=Path("travel.jpg"), help="Output path. .jpg/.png creates one frame; .gif creates an animated GIF when storyboard is animated.")
+    parser.add_argument("--output", type=Path, default=None, help="Optional image/GIF output path. Omit for the default online preview when using a visual preset.")
     parser.add_argument("--storyboard", choices=["all-points", "ambient-spark", "timeline", "cluster", "constellation"], default="all-points")
     parser.add_argument("--storyboard-preset", choices=["spark-drift"], default=None, help="Built-in visual storyboard preset.")
     parser.add_argument("--mode", choices=["timeline", "cluster", "constellation"], default=None, help="Deprecated alias for --storyboard.")
@@ -63,17 +64,15 @@ def main(argv: list[str] | None = None) -> int:
         raise SystemExit(str(exc)) from exc
     storyboard = storyboard_mode(storyboard_preset, args.mode or args.storyboard)
     effect = "glow" if storyboard_preset is not None and args.effect == "none" else args.effect
-    output = args.output
-    if storyboard_preset is not None and output == Path("travel.jpg"):
-        output = Path("travel.gif")
-    output_format = _output_format(output)
-    if output_format not in {"jpeg", "png", "gif"}:
+    output, export_scene = _presentation_targets(output=args.output, export_scene=args.export_scene, storyboard=storyboard, storyboard_preset=args.storyboard_preset)
+    output_format = _output_format(output) if output is not None else ""
+    if output is not None and output_format not in {"jpeg", "png", "gif"}:
         raise SystemExit("--output must end with .jpg, .jpeg, .png, or .gif")
     if storyboard != "all-points" and effect == "none":
         raise SystemExit("--effect glow is required for animated storyboard modes until layered hand-off is available")
-    if storyboard != "all-points" and output_format != "gif":
+    if storyboard != "all-points" and output is not None and output_format != "gif":
         raise SystemExit("animated storyboard modes require .gif output")
-    if args.export_scene is not None and storyboard != "ambient-spark":
+    if export_scene is not None and storyboard != "ambient-spark":
         raise SystemExit("--export-scene currently supports --storyboard-preset spark-drift / ambient-spark only")
 
     progress = Progress(enabled=not args.quiet)
@@ -180,31 +179,45 @@ def main(argv: list[str] | None = None) -> int:
             style_profile=cadis_style_profile,
         )
         render_width, render_height = _aspect_preserving_size(base_map.image.width, base_map.image.height, args.width, args.height)
-        render_report = render_gif(
-            scope.kept,
-            output,
-            bounds=base_map.bounds,
-            style=style,
-            base_map=base_map.image,
-            width=render_width,
-            height=render_height,
-            mode=storyboard,
-            frames=args.frames,
-            fps=args.fps,
-            cluster_radius_km=args.cluster_radius_km,
-            progress=progress.say,
-            frame_progress=progress.step,
-        )
+        if output is not None:
+            render_report = render_gif(
+                scope.kept,
+                output,
+                bounds=base_map.bounds,
+                style=style,
+                base_map=base_map.image,
+                width=render_width,
+                height=render_height,
+                mode=storyboard,
+                frames=args.frames,
+                fps=args.fps,
+                cluster_radius_km=args.cluster_radius_km,
+                progress=progress.say,
+                frame_progress=progress.step,
+            )
+        else:
+            render_report = {
+                "output": None,
+                "output_format": "timeline-scene",
+                "width": render_width,
+                "height": render_height,
+                "storyboard": storyboard,
+                "frames": args.frames,
+                "fps": args.fps,
+                "point_count": len(scope.kept),
+                "cluster_count": len(cluster_points(scope.kept, args.cluster_radius_km)),
+                "bounds": base_map.bounds.as_dict(),
+            }
         render_report["effect"] = "glow"
-    if output != args.output:
+    if output is not None and output != args.output:
         render_report["output"] = str(output)
     report |= render_report
     report["base_map"] = base_map.metadata
-    if args.export_scene is not None:
-        player_html = args.player_html or args.export_scene.with_suffix(".html")
-        progress.say(f"writing timeline scene: {args.export_scene}")
+    if export_scene is not None:
+        player_html = args.player_html or export_scene.with_suffix(".html")
+        progress.say(f"writing timeline scene: {export_scene}")
         report["timeline_scene"] = write_timeline_scene_package(
-            scene_json=args.export_scene,
+            scene_json=export_scene,
             points=scope.kept,
             base_map=base_map,
             style=style,
@@ -257,6 +270,14 @@ def _output_format(output: Path) -> str:
     if suffix == ".gif":
         return "gif"
     return ""
+
+
+def _presentation_targets(*, output: Path | None, export_scene: Path | None, storyboard: str, storyboard_preset: str | None) -> tuple[Path | None, Path | None]:
+    if storyboard_preset is not None and output is None and export_scene is None:
+        return None, Path("timeline-scene.json")
+    if storyboard == "all-points" and output is None:
+        return Path("travel.jpg"), export_scene
+    return output, export_scene
 
 
 def _write_report(path: Path | None, report: dict) -> None:
