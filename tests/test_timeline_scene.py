@@ -1,0 +1,44 @@
+from pathlib import Path
+
+from PIL import Image
+
+from travelspark.engine import BaseMap
+from travelspark.exif import PhotoPoint
+from travelspark.geo import bounds_from_values
+from travelspark.style import load_style
+from travelspark.timeline_scene import write_timeline_scene_package
+
+
+def test_write_timeline_scene_package_exports_json_assets_and_player(tmp_path: Path):
+    base_map = BaseMap(
+        image=Image.new("RGB", (320, 180), (4, 9, 16)),
+        bounds=bounds_from_values([120, 20, 122, 26]),
+        scene_id="tw",
+        scene_version="0.1.20",
+        metadata={"source": "test"},
+    )
+    report = write_timeline_scene_package(
+        scene_json=tmp_path / "timeline-scene.json",
+        points=[PhotoPoint(tmp_path / "a.jpg", 25.04, 121.56)],
+        base_map=base_map,
+        style=load_style(None, style_id="spark-night"),
+        storyboard="ambient-spark",
+        storyboard_preset="spark-drift",
+        width=320,
+        height=180,
+        frames=96,
+        fps=18,
+        cluster_radius_km=8.0,
+        player_html=tmp_path / "player.html",
+    )
+
+    scene_json = tmp_path / "timeline-scene.json"
+    assert scene_json.is_file()
+    assert (tmp_path / "timeline-scene_assets" / "basemap.png").is_file()
+    assert (tmp_path / "player.html").is_file()
+    scene_text = scene_json.read_text(encoding="utf-8")
+    player_text = (tmp_path / "player.html").read_text(encoding="utf-8")
+    assert '"profile": "cadis.travel_spark.timeline_scene"' in scene_text
+    assert '"type": "ambient-spark"' in scene_text
+    assert "timeline-scene_assets/basemap.png" in player_text
+    assert report["timeline_scene_json"] == str(scene_json)

@@ -11,6 +11,7 @@ from .progress import Progress
 from .scope import cadis_country_lookup, filter_points_for_scene
 from .storyboard import load_storyboard_preset, storyboard_mode
 from .style import load_cadis_style_profile, load_style
+from .timeline_scene import write_timeline_scene_package
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -38,6 +39,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--use-exiftool", choices=["auto", "yes", "no"], default="auto")
     parser.add_argument("--points-json", type=Path, default=None, help="Optional JSON export of rendered GPS points.")
     parser.add_argument("--report-json", type=Path, default=None, help="Optional render report JSON path.")
+    parser.add_argument("--export-scene", type=Path, default=None, help="Optional browser-playable timeline scene JSON export.")
+    parser.add_argument("--player-html", type=Path, default=None, help="Optional HTML player path for --export-scene. Defaults beside the scene JSON.")
     parser.add_argument("--preflight-only", action="store_true", help="Extract/filter points and write report without rendering GIF.")
     parser.add_argument("--quiet", action="store_true", help="Suppress progress output.")
     return parser
@@ -65,6 +68,8 @@ def main(argv: list[str] | None = None) -> int:
         raise SystemExit("--effect glow is required for animated storyboard modes until layered hand-off is available")
     if storyboard != "all-points" and output_format != "gif":
         raise SystemExit("animated storyboard modes require .gif output")
+    if args.export_scene is not None and storyboard != "ambient-spark":
+        raise SystemExit("--export-scene currently supports --storyboard-preset spark-drift / ambient-spark only")
 
     progress = Progress(enabled=not args.quiet)
     points = extract_photo_points(
@@ -187,6 +192,23 @@ def main(argv: list[str] | None = None) -> int:
         render_report["output"] = str(output)
     report |= render_report
     report["base_map"] = base_map.metadata
+    if args.export_scene is not None:
+        player_html = args.player_html or args.export_scene.with_suffix(".html")
+        progress.say(f"writing timeline scene: {args.export_scene}")
+        report["timeline_scene"] = write_timeline_scene_package(
+            scene_json=args.export_scene,
+            points=scope.kept,
+            base_map=base_map,
+            style=style,
+            storyboard=storyboard,
+            storyboard_preset=args.storyboard_preset,
+            width=args.width,
+            height=args.height,
+            frames=args.frames,
+            fps=args.fps,
+            cluster_radius_km=args.cluster_radius_km,
+            player_html=player_html,
+        )
     _write_report(args.report_json, report)
     print(json.dumps(report, ensure_ascii=False, indent=2))
     return 0

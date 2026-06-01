@@ -10,7 +10,7 @@ is used as an optional preflight/filter helper.
 ## Contract
 
 ```text
-PathToPhotos + SceneName + MapStyle + Storyboard + Options -> JPEG/PNG/GIF
+PathToPhotos + SceneName + MapStyle + Storyboard + Options -> JPEG/PNG/GIF/timeline-scene
 ```
 
 Example:
@@ -34,14 +34,30 @@ travelspark /path/to/photos \
   --output travel.gif
 ```
 
+Browser-playable visual script:
+
+```bash
+travelspark /path/to/photos \
+  --scene-id world_8192 \
+  --map-style spark-night \
+  --storyboard-preset spark-drift \
+  --output travel.gif \
+  --export-scene timeline-scene.json
+```
+
+This writes `timeline-scene.json`, `timeline-scene.html`, and a local basemap
+asset folder. Open the HTML file to play, pause, and scrub the same ambient
+spark timeline without GIF palette and frame-delay limits.
+
 PoC framing:
 
 - `cadis-map-render` owns stylish still-image rendering.
 - TravelSpark owns the Director/storyboard and export workflow.
 - `--effect none` uses the CADIS-rendered marked still frame directly.
 - `--effect glow` uses TravelSpark's current presentation effect layer.
-- `--storyboard-preset spark-drift` creates a quiet night-sky sparkle GIF.
-- Animated storyboards currently require `--effect glow` and `.gif` output.
+- `--storyboard-preset spark-drift` creates a quiet night-sky sparkle timeline.
+- GIF is one export target; `--export-scene` writes the browser-playable source
+  timeline for visual QA and live playback.
 
 ## Install
 
@@ -77,18 +93,18 @@ To update an existing activated `.venv` after `git pull`, reinstall the
 TravelSpark wheel without touching already installed dependencies:
 
 ```bash
-python -m pip install --force-reinstall --no-deps wheels/cadis_map_render-0.3.32-py3-none-any.whl wheels/cadis_travel_spark-0.1.7-py3-none-any.whl
+python -m pip install --force-reinstall --no-deps wheels/cadis_map_render-0.3.32-py3-none-any.whl wheels/cadis_travel_spark-0.1.8-py3-none-any.whl
 ```
 
 If Pillow was accidentally reinstalled into a broken state, repair it first:
 
 ```bash
 python -m pip install --force-reinstall --no-cache-dir "Pillow>=10"
-python -m pip install --force-reinstall --no-deps wheels/cadis_map_render-0.3.32-py3-none-any.whl wheels/cadis_travel_spark-0.1.7-py3-none-any.whl
+python -m pip install --force-reinstall --no-deps wheels/cadis_map_render-0.3.32-py3-none-any.whl wheels/cadis_travel_spark-0.1.8-py3-none-any.whl
 ```
 
 Vendored wheels are pinned in `requirements.lock.txt`:
 
 - `cadis==0.9.0`
 - `cadis-map-render==0.3.32`
-- `cadis-travel-spark==0.1.7`
+- `cadis-travel-spark==0.1.8`
