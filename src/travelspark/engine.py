@@ -83,8 +83,6 @@ class CadisMapRenderEngine:
             raise RuntimeError("cadis-map-render did not return base map bounds")
 
         image = Image.open(image_path).convert("RGB")
-        if image.size != (width, height):
-            image = image.resize((width, height), Image.Resampling.LANCZOS)
         return BaseMap(
             image=image,
             bounds=bounds_from_values(bounds),
@@ -143,8 +141,6 @@ class CadisMapRenderEngine:
         if not image_path.exists():
             raise RuntimeError(f"cadis-map-render output image was not found: {image_path}")
         image = Image.open(image_path).convert("RGB")
-        if image.size != (width, height):
-            image = image.resize((width, height), Image.Resampling.LANCZOS)
         bounds = crop_bounds or self._scene_bounds_from_result(result)
         return BaseMap(
             image=image,

@@ -8,6 +8,7 @@ build/
 *.egg-info/
 
 # Local render outputs and debug exports.
+.travelspark-output/
 *.gif
 *_report.json
 *_points.json

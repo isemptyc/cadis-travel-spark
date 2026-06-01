@@ -132,14 +132,15 @@ def main(argv: list[str] | None = None) -> int:
             crop_bounds=None,
             style_profile=cadis_style_profile,
         )
+        render_width, render_height = _aspect_preserving_size(base_map.image.width, base_map.image.height, args.width, args.height)
         render_report = render_still(
             scope.kept,
             output,
             bounds=base_map.bounds,
             style=style,
             base_map=base_map.image,
-            width=args.width,
-            height=args.height,
+            width=render_width,
+            height=render_height,
             effect="none",
             cluster_radius_km=args.cluster_radius_km,
             progress=progress.say,
@@ -152,14 +153,15 @@ def main(argv: list[str] | None = None) -> int:
             crop_bounds=None,
             style_profile=cadis_style_profile,
         )
+        render_width, render_height = _aspect_preserving_size(base_map.image.width, base_map.image.height, args.width, args.height)
         render_report = render_still(
             scope.kept,
             output,
             bounds=base_map.bounds,
             style=style,
             base_map=base_map.image,
-            width=args.width,
-            height=args.height,
+            width=render_width,
+            height=render_height,
             effect="glow",
             cluster_radius_km=args.cluster_radius_km,
             progress=progress.say,
@@ -172,14 +174,15 @@ def main(argv: list[str] | None = None) -> int:
             crop_bounds=None,
             style_profile=cadis_style_profile,
         )
+        render_width, render_height = _aspect_preserving_size(base_map.image.width, base_map.image.height, args.width, args.height)
         render_report = render_gif(
             scope.kept,
             output,
             bounds=base_map.bounds,
             style=style,
             base_map=base_map.image,
-            width=args.width,
-            height=args.height,
+            width=render_width,
+            height=render_height,
             mode=storyboard,
             frames=args.frames,
             fps=args.fps,
@@ -202,8 +205,8 @@ def main(argv: list[str] | None = None) -> int:
             style=style,
             storyboard=storyboard,
             storyboard_preset=args.storyboard_preset,
-            width=args.width,
-            height=args.height,
+            width=render_report["width"],
+            height=render_report["height"],
             frames=args.frames,
             fps=args.fps,
             cluster_radius_km=args.cluster_radius_km,
@@ -256,3 +259,10 @@ def _write_report(path: Path | None, report: dict) -> None:
         return
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+
+def _aspect_preserving_size(source_width: int, source_height: int, max_width: int, max_height: int) -> tuple[int, int]:
+    scale = min(max_width / source_width, max_height / source_height)
+    width = max(1, int(round(source_width * scale)))
+    height = max(1, int(round(source_height * scale)))
+    return width, height

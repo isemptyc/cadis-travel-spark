@@ -7,6 +7,12 @@ from travelspark.exif import PhotoPoint
 from travelspark.geo import bounds_from_values
 from travelspark.style import load_style
 from travelspark.timeline_scene import write_timeline_scene_package
+from travelspark.cli import _aspect_preserving_size
+
+
+def test_aspect_preserving_size_contains_world_map_in_requested_viewport():
+    assert _aspect_preserving_size(8192, 4096, 1280, 720) == (1280, 640)
+    assert _aspect_preserving_size(4096, 4096, 1280, 720) == (720, 720)
 
 
 def test_write_timeline_scene_package_exports_json_assets_and_player(tmp_path: Path):
