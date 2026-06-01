@@ -36,7 +36,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--output-root", type=Path, default=Path(".travelspark-output"), help="Renderer output root.")
     parser.add_argument("--scope-policy", choices=["filter", "strict", "none"], default="filter")
     parser.add_argument("--country-filter", choices=["auto", "yes", "no"], default="auto", help="Use cadis lookup for country-scope filtering.")
-    parser.add_argument("--use-exiftool", choices=["auto", "yes", "no"], default="auto")
+    parser.add_argument(
+        "--use-exiftool",
+        choices=["auto", "yes", "no"],
+        default="auto",
+        help="EXIF reader policy: auto prefers exiftool and falls back to Pillow, yes requires exiftool, no uses Pillow only.",
+    )
     parser.add_argument("--points-json", type=Path, default=None, help="Optional JSON export of rendered GPS points.")
     parser.add_argument("--report-json", type=Path, default=None, help="Optional render report JSON path.")
     parser.add_argument("--export-scene", type=Path, default=None, help="Optional browser-playable timeline scene JSON export.")

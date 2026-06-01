@@ -53,14 +53,25 @@ def extract_photo_points(
     paths = find_photo_files(folder)
     if status is not None:
         status(f"found {len(paths)} candidate photo files")
-    points = _extract_with_pillow(paths, progress=progress)
-    seen = {point.path.resolve() for point in points}
-    missing = [path for path in paths if path.resolve() not in seen]
-    should_use_exiftool = use_exiftool == "yes" or (use_exiftool == "auto" and missing)
-    if should_use_exiftool and shutil.which("exiftool"):
+
+    exiftool_path = shutil.which("exiftool")
+    if use_exiftool in {"auto", "yes"} and exiftool_path:
         if status is not None:
-            status(f"running exiftool fallback for {len(missing or paths)} files")
-        points.extend(_extract_with_exiftool(missing or paths, skip_paths=seen, progress=progress))
+            status("reading EXIF GPS with exiftool")
+        points = _extract_with_exiftool(paths, skip_paths=set(), progress=progress)
+        seen = {point.path.resolve() for point in points}
+        missing = [path for path in paths if path.resolve() not in seen]
+        if missing:
+            if status is not None:
+                status(f"running Pillow fallback for {len(missing)} files")
+            points.extend(_extract_with_pillow(missing, progress=progress))
+    elif use_exiftool == "yes":
+        raise RuntimeError("exiftool is required by --use-exiftool yes but was not found on PATH")
+    else:
+        if status is not None and use_exiftool == "auto":
+            status("exiftool not found; using Pillow fallback")
+        points = _extract_with_pillow(paths, progress=progress)
+
     if status is not None:
         status(f"GPS points extracted: {len(points)}")
     return sorted(points, key=lambda p: (p.taken_at or datetime.min.replace(tzinfo=timezone.utc), str(p.path)))
@@ -147,7 +158,7 @@ def _run_exiftool(
     for start in range(0, len(paths), batch_size):
         batch = paths[start : start + batch_size]
         if progress is not None:
-            progress("exiftool GPS fallback", min(start + len(batch), len(paths)), len(paths))
+            progress("parsing EXIF GPS with exiftool", min(start + len(batch), len(paths)), len(paths))
         result = subprocess.run(
             [
                 "exiftool",
