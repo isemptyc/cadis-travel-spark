@@ -4,13 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cadis-travel-spark"
-version = "0.1.8"
+version = "0.1.9"
 description = "Create semantic travel map presentations from local photo folders."
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "Apache-2.0"}
 dependencies = [
-  "Pillow>=10",
+  "Pillow>=10,<12.2",
 ]
 
 [project.optional-dependencies]

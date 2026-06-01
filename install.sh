@@ -8,6 +8,7 @@ python3 -m venv "${VENV_DIR}"
 # shellcheck disable=SC1091
 source "${VENV_DIR}/bin/activate"
 python -m pip install --upgrade pip
+python -m pip install --force-reinstall --no-cache-dir "Pillow>=10,<12.2"
 
 if compgen -G "${ROOT_DIR}/wheels/*.whl" > /dev/null; then
   python -m pip install "${ROOT_DIR}"/wheels/*.whl

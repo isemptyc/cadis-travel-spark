@@ -6,6 +6,7 @@ $VenvDir = Join-Path $RootDir ".venv"
 py -m venv $VenvDir
 & (Join-Path $VenvDir "Scripts\Activate.ps1")
 python -m pip install --upgrade pip
+python -m pip install --force-reinstall --no-cache-dir "Pillow>=10,<12.2"
 
 $Wheels = Get-ChildItem -Path (Join-Path $RootDir "wheels") -Filter "*.whl" -ErrorAction SilentlyContinue
 if ($Wheels) {
