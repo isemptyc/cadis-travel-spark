@@ -47,4 +47,6 @@ def test_write_timeline_scene_package_exports_json_assets_and_player(tmp_path: P
     assert '"profile": "cadis.travel_spark.timeline_scene"' in scene_text
     assert '"type": "ambient-spark"' in scene_text
     assert "timeline-scene_assets/basemap.png" in player_text
+    assert "16 / 9" not in player_text
+    assert "resizeCanvasElement" in player_text
     assert report["timeline_scene_json"] == str(scene_json)

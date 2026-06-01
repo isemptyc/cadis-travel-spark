@@ -172,7 +172,7 @@ _PLAYER_HTML = """<!doctype html>
     :root { color-scheme: dark; background: #05070b; color: #f6f1df; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
     body { margin: 0; min-height: 100vh; display: grid; grid-template-rows: 1fr auto; background: #05070b; }
     main { min-height: 0; display: grid; place-items: center; padding: 18px; }
-    canvas { width: min(100%, calc(100vh * 16 / 9)); max-height: calc(100vh - 92px); border-radius: 8px; box-shadow: 0 18px 80px rgba(0,0,0,.45); background: #07101b; }
+    canvas { display: block; border-radius: 8px; box-shadow: 0 18px 80px rgba(0,0,0,.45); background: #07101b; }
     footer { display: grid; grid-template-columns: auto 1fr auto; gap: 14px; align-items: center; padding: 12px 18px 18px; }
     button { border: 1px solid rgba(246,241,223,.26); color: #f6f1df; background: rgba(255,255,255,.07); border-radius: 6px; padding: 8px 13px; font: inherit; cursor: pointer; }
     button:hover { background: rgba(255,255,255,.12); }
@@ -202,7 +202,15 @@ _PLAYER_HTML = """<!doctype html>
     const outline = scene.style.marker_outline_color;
     canvas.width = width;
     canvas.height = height;
-    canvas.style.aspectRatio = `${width} / ${height}`;
+    function resizeCanvasElement() {
+      const maxWidth = Math.max(320, window.innerWidth - 36);
+      const maxHeight = Math.max(240, window.innerHeight - 92);
+      const scale = Math.min(maxWidth / width, maxHeight / height);
+      canvas.style.width = `${Math.max(1, Math.floor(width * scale))}px`;
+      canvas.style.height = `${Math.max(1, Math.floor(height * scale))}px`;
+    }
+    resizeCanvasElement();
+    window.addEventListener("resize", resizeCanvasElement);
     const base = new Image();
     let playing = true;
     let startedAt = performance.now();

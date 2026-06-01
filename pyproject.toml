@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cadis-travel-spark"
-version = "0.1.10"
+version = "0.1.11"
 description = "Create semantic travel map presentations from local photo folders."
 readme = "README.md"
 requires-python = ">=3.10"
