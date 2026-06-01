@@ -104,24 +104,28 @@ must be done in your current shell after the installer exits; otherwise the
 
 The installers prefer pinned wheels from `wheels/` when present. This keeps the
 repo usable as a one-stop side-project package while leaving `cadis` and
-`cadis-map-render` as independent upstream projects.
+`cadis-map-render` as independent upstream projects. For CPython 3.12 on
+Darwin arm64 or Linux amd64, the installers also select the matching vendored
+`cadis_native_cgd` wheel from `wheels/darwin-arm64/` or `wheels/linux-amd64/` so
+CADIS can use its Rust CGD world pass.
 
 To update an existing activated `.venv` after `git pull`, reinstall the
 TravelSpark wheel without touching already installed dependencies:
 
 ```bash
-python -m pip install --force-reinstall --no-deps wheels/cadis_map_render-0.3.32-py3-none-any.whl wheels/cadis_travel_spark-0.1.18-py3-none-any.whl
+python -m pip install --force-reinstall --no-deps wheels/cadis_map_render-0.3.32-py3-none-any.whl wheels/cadis_travel_spark-0.1.19-py3-none-any.whl
 ```
 
 If Pillow was accidentally reinstalled into a broken state, repair it first:
 
 ```bash
 python -m pip install --force-reinstall --no-cache-dir "Pillow>=10,<12.2"
-python -m pip install --force-reinstall --no-deps wheels/cadis_map_render-0.3.32-py3-none-any.whl wheels/cadis_travel_spark-0.1.18-py3-none-any.whl
+python -m pip install --force-reinstall --no-deps wheels/cadis_map_render-0.3.32-py3-none-any.whl wheels/cadis_travel_spark-0.1.19-py3-none-any.whl
 ```
 
 Vendored wheels are pinned in `requirements.lock.txt`:
 
 - `cadis==0.9.0`
 - `cadis-map-render==0.3.32`
-- `cadis-travel-spark==0.1.18`
+- `cadis-native-cgd==0.1.0` for CPython 3.12 Darwin arm64 / Linux amd64
+- `cadis-travel-spark==0.1.19`
