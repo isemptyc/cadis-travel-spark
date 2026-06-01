@@ -26,6 +26,7 @@ def filter_points_for_scene(
     scene_country_iso: str | None = None,
     policy: str = "filter",
     country_lookup: CountryLookup | None = None,
+    progress: Callable[[str, int, int], None] | None = None,
 ) -> ScopeResult:
     if policy not in {"filter", "strict", "none"}:
         raise ValueError("scope policy must be filter, strict, or none")
@@ -38,8 +39,26 @@ def filter_points_for_scene(
     detected_countries: Counter[str] = Counter()
     expected_country = scene_country_iso.strip().upper() if isinstance(scene_country_iso, str) and scene_country_iso.strip() else None
 
-    for point in points:
-        country_iso = country_lookup(point.latitude, point.longitude) if country_lookup is not None else None
+    country_cache: dict[tuple[float, float], str | None] = {}
+    total = len(points)
+    for index, point in enumerate(points, start=1):
+        if progress is not None and (index == 1 or index == total or index % 1000 == 0):
+            progress("filtering points for scene scope", index, total)
+
+        # Bounds checks are cheap and remove most irrelevant photos for country
+        # scenes.  Do them before the optional CADIS country lookup, which can
+        # be expensive on large global photo libraries.
+        if not bounds.contains(point.latitude, point.longitude):
+            skipped.append(point)
+            skipped_reasons["outside_bounds"] += 1
+            continue
+
+        country_iso = None
+        if country_lookup is not None:
+            key = (round(point.latitude, 6), round(point.longitude, 6))
+            if key not in country_cache:
+                country_cache[key] = country_lookup(point.latitude, point.longitude)
+            country_iso = country_cache[key]
         if country_iso:
             detected_countries[country_iso.strip().upper()] += 1
         reason = _skip_reason(point, bounds=bounds, expected_country=expected_country, country_iso=country_iso)

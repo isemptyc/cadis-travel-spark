@@ -96,18 +96,28 @@ def main(argv: list[str] | None = None) -> int:
     scene = engine.scene_metadata()
     bounds = scene_bounds(scene)
     country_lookup = None
-    if args.country_filter == "yes" or (args.country_filter == "auto" and scene_country_iso(args.scene_id) is not None):
+    country_iso = scene_country_iso(args.scene_id)
+    in_bounds_count = sum(1 for point in points if bounds.contains(point.latitude, point.longitude))
+    if args.country_filter == "yes" or _auto_country_lookup_enabled(args.country_filter, country_iso=country_iso, in_bounds_count=in_bounds_count):
         country_lookup = cadis_country_lookup()
         if country_lookup is None and args.country_filter == "yes":
             raise SystemExit("cadis lookup is unavailable; install the pinned cadis wheel or use --country-filter no")
+    elif args.country_filter == "auto" and country_iso is not None and in_bounds_count > 5000:
+        progress.say(
+            f"skipping CADIS country lookup in auto mode for {in_bounds_count} in-bounds point(s); "
+            "use --country-filter yes for strict country polygon filtering"
+        )
 
+    progress.say("filtering points for scene scope")
     scope = filter_points_for_scene(
         points,
         bounds=bounds,
-        scene_country_iso=scene_country_iso(args.scene_id),
+        scene_country_iso=country_iso,
         policy=args.scope_policy,
         country_lookup=country_lookup,
+        progress=progress.step,
     )
+    progress.say(f"scene scope kept {len(scope.kept)} point(s), filtered {len(scope.skipped)}")
     if args.points_json:
         progress.say(f"writing points JSON: {args.points_json}")
         export_points_json(scope.kept, args.points_json)
@@ -271,6 +281,10 @@ def _output_format(output: Path) -> str:
         return "gif"
     return ""
 
+
+
+def _auto_country_lookup_enabled(policy: str, *, country_iso: str | None, in_bounds_count: int) -> bool:
+    return policy == "auto" and country_iso is not None and in_bounds_count <= 5000
 
 def _presentation_targets(*, output: Path | None, export_scene: Path | None, storyboard: str, storyboard_preset: str | None) -> tuple[Path | None, Path | None]:
     if storyboard_preset is not None and output is None and export_scene is None:

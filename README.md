@@ -16,6 +16,11 @@ Files that EXIFTool successfully reads but that simply do not contain GPS are
 not sent through the slower Pillow fallback. Use `--use-exiftool yes` to
 require `exiftool`, or `--use-exiftool no` to force Pillow-only parsing.
 
+Scene filtering is bounds-first for speed. In `--country-filter auto`, CADIS
+country-polygon lookup is skipped for large country-scene result sets; pass
+`--country-filter yes` if you need strict country-polygon filtering instead of
+fast scene-bounds filtering.
+
 ## Contract
 
 ```text
@@ -100,18 +105,18 @@ To update an existing activated `.venv` after `git pull`, reinstall the
 TravelSpark wheel without touching already installed dependencies:
 
 ```bash
-python -m pip install --force-reinstall --no-deps wheels/cadis_map_render-0.3.32-py3-none-any.whl wheels/cadis_travel_spark-0.1.16-py3-none-any.whl
+python -m pip install --force-reinstall --no-deps wheels/cadis_map_render-0.3.32-py3-none-any.whl wheels/cadis_travel_spark-0.1.17-py3-none-any.whl
 ```
 
 If Pillow was accidentally reinstalled into a broken state, repair it first:
 
 ```bash
 python -m pip install --force-reinstall --no-cache-dir "Pillow>=10,<12.2"
-python -m pip install --force-reinstall --no-deps wheels/cadis_map_render-0.3.32-py3-none-any.whl wheels/cadis_travel_spark-0.1.16-py3-none-any.whl
+python -m pip install --force-reinstall --no-deps wheels/cadis_map_render-0.3.32-py3-none-any.whl wheels/cadis_travel_spark-0.1.17-py3-none-any.whl
 ```
 
 Vendored wheels are pinned in `requirements.lock.txt`:
 
 - `cadis==0.9.0`
 - `cadis-map-render==0.3.32`
-- `cadis-travel-spark==0.1.16`
+- `cadis-travel-spark==0.1.17`

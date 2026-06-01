@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from travelspark.cli import _presentation_targets
+from travelspark.cli import _auto_country_lookup_enabled, _presentation_targets
 
 
 def test_spark_drift_defaults_to_timeline_scene_without_gif():
@@ -37,3 +37,10 @@ def test_explicit_spark_drift_gif_output_is_respected():
 
     assert output == Path("travel.gif")
     assert export_scene is None
+
+
+def test_auto_country_lookup_is_disabled_for_large_country_scene_sets():
+    assert _auto_country_lookup_enabled("auto", country_iso="TW", in_bounds_count=5000) is True
+    assert _auto_country_lookup_enabled("auto", country_iso="TW", in_bounds_count=5001) is False
+    assert _auto_country_lookup_enabled("auto", country_iso=None, in_bounds_count=1) is False
+    assert _auto_country_lookup_enabled("no", country_iso="TW", in_bounds_count=1) is False

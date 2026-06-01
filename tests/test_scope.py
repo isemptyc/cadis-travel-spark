@@ -21,7 +21,8 @@ def test_filter_points_for_single_country_scene_skips_mismatches():
     assert result.kept == [tw_point]
     assert result.skipped == [jp_point]
     assert result.skipped_reasons == {"outside_bounds": 1}
-    assert result.detected_countries == {"TW": 1, "JP": 1}
+    # Outside-bounds points are skipped before the expensive country lookup.
+    assert result.detected_countries == {"TW": 1}
 
 
 def test_strict_scope_policy_fails_on_skipped_points():
@@ -41,3 +42,24 @@ def test_filter_policy_fails_only_when_no_points_remain():
             bounds=Bounds(118.0, 20.0, 123.5, 26.8),
             scene_country_iso="TW",
         )
+
+
+def test_country_lookup_is_not_called_for_outside_bounds_points():
+    inside = PhotoPoint(Path("tw.jpg"), 25.0, 121.5)
+    outside = PhotoPoint(Path("jp.jpg"), 35.0, 139.7)
+    calls = []
+
+    def lookup(lat: float, lon: float) -> str:
+        calls.append((lat, lon))
+        return "TW"
+
+    result = filter_points_for_scene(
+        [inside, outside],
+        bounds=Bounds(118.0, 20.0, 123.5, 26.8),
+        scene_country_iso="TW",
+        country_lookup=lookup,
+    )
+
+    assert result.kept == [inside]
+    assert result.skipped == [outside]
+    assert calls == [(25.0, 121.5)]
