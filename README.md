@@ -113,14 +113,14 @@ To update an existing activated `.venv` after `git pull`, reinstall the
 TravelSpark wheel without touching already installed dependencies:
 
 ```bash
-python -m pip install --force-reinstall --no-deps wheels/cadis_map_render-0.3.32-py3-none-any.whl wheels/cadis_travel_spark-0.1.20-py3-none-any.whl
+python -m pip install --force-reinstall --no-deps wheels/cadis_map_render-0.3.32-py3-none-any.whl wheels/cadis_travel_spark-0.1.21-py3-none-any.whl
 ```
 
 If Pillow was accidentally reinstalled into a broken state, repair it first:
 
 ```bash
 python -m pip install --force-reinstall --no-cache-dir "Pillow>=10,<12.2"
-python -m pip install --force-reinstall --no-deps wheels/cadis_map_render-0.3.32-py3-none-any.whl wheels/cadis_travel_spark-0.1.20-py3-none-any.whl
+python -m pip install --force-reinstall --no-deps wheels/cadis_map_render-0.3.32-py3-none-any.whl wheels/cadis_travel_spark-0.1.21-py3-none-any.whl
 ```
 
 Vendored wheels are pinned in `requirements.lock.txt`:
@@ -128,4 +128,4 @@ Vendored wheels are pinned in `requirements.lock.txt`:
 - `cadis==0.9.0`
 - `cadis-map-render==0.3.32`
 - `cadis-native-cgd==0.1.0` for CPython 3.12 Darwin arm64 / Linux amd64
-- `cadis-travel-spark==0.1.20`
+- `cadis-travel-spark==0.1.21`

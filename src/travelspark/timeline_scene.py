@@ -65,7 +65,14 @@ def build_timeline_scene(
             "marker_color": color(style, "activation", "marker_color"),
             "marker_outline_color": color(style, "activation", "marker_outline_color"),
         },
-        "effects": _ambient_spark_effects(points, clusters, base_map=base_map, width=width, height=height),
+        "effects": _ambient_spark_effects(
+            points,
+            clusters,
+            base_map=base_map,
+            width=width,
+            height=height,
+            duration_ms=duration_ms,
+        ),
     }
 
 
@@ -120,7 +127,7 @@ def write_player_html(player_html: Path, *, scene: dict[str, Any]) -> None:
     player_html.write_text(_PLAYER_HTML.replace("__TRAVELSPARK_SCENE__", scene_payload), encoding="utf-8")
 
 
-def _ambient_spark_effects(points, clusters, *, base_map: BaseMap, width: int, height: int) -> dict[str, Any]:
+def _ambient_spark_effects(points, clusters, *, base_map: BaseMap, width: int, height: int, duration_ms: int) -> dict[str, Any]:
     radius_scale = _ambient_radius_scale(base_map.bounds)
     cluster_rows = []
     for index, cluster in enumerate(clusters):
@@ -142,15 +149,17 @@ def _ambient_spark_effects(points, clusters, *, base_map: BaseMap, width: int, h
     for index, cluster in enumerate(clusters):
         x, y = project_to_pixel(cluster.longitude, cluster.latitude, bounds=base_map.bounds, width=width, height=height)
         seed = _stable_units(f"site:{index}:{cluster.count}:{cluster.latitude:.6f}:{cluster.longitude:.6f}", 8)
-        period_frames = 72.0 + seed[0] * 96.0
+        loop_cycles = 1 if seed[0] < 0.78 else 2
+        period_ms = max(1.0, duration_ms / loop_cycles)
         point_rows.append(
             {
                 "x": x,
                 "y": y,
                 "count": cluster.count,
                 "source": str(cluster.members[0].path) if cluster.members else None,
-                "period_ms": int(round(period_frames * 1000 / 18)),
-                "phase_ms": int(round(seed[1] * period_frames * 1000 / 18)),
+                "period_ms": period_ms,
+                "phase_ms": seed[1] * period_ms,
+                "loop_cycles": loop_cycles,
                 "min_intensity": 0.04 + seed[3] * 0.06,
                 "max_intensity": 0.22 + seed[4] * 0.28,
                 "core_radius": max(0.65, (0.8 + seed[2] * 1.4) * math.sqrt(radius_scale)),
