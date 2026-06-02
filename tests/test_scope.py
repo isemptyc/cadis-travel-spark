@@ -161,6 +161,30 @@ def test_cadis_country_lookup_many_uses_public_batch_contract(monkeypatch):
     assert calls["kwargs"] == {"allowed_iso2": ["TW"], "runtime_cache_policy": "batch"}
 
 
+def test_cadis_country_lookup_many_maps_results_by_returned_id(monkeypatch):
+    tw_point = PhotoPoint(Path("tw.jpg"), 25.0, 121.5)
+    jp_point = PhotoPoint(Path("jp.jpg"), 35.0, 139.7)
+
+    def lookup_many(points, **kwargs):
+        return [
+            {
+                "id": points[1]["id"],
+                "lookup": {"state": {"world": {"iso2": "JP"}}},
+            },
+            {
+                "id": points[0]["id"],
+                "lookup": {"state": {"world": {"iso2": "TW"}}},
+            },
+        ]
+
+    monkeypatch.setitem(sys.modules, "cadis", SimpleNamespace(lookup_many=lookup_many))
+
+    resolve = cadis_country_lookup_many()
+
+    assert resolve is not None
+    assert resolve([tw_point, jp_point]) == ["TW", "JP"]
+
+
 def test_country_iso_parser_handles_lookup_many_payloads():
     assert _country_iso_from_cadis_result({"lookup": {"state": {"world": {"iso2": "tw"}}}}) == "TW"
     assert _country_iso_from_cadis_result({"lookup": {"result": {"country_iso2": "jp"}}}) == "JP"

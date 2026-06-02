@@ -166,9 +166,16 @@ def cadis_country_lookup_many(
             )
         except Exception:
             return [None] * len(points)
-        if not isinstance(results, list) or len(results) != len(points):
+        if not isinstance(results, list):
             return [None] * len(points)
-        return [_country_iso_from_cadis_result(result) for result in results]
+        country_by_id: dict[str, str | None] = {}
+        for result in results:
+            if not isinstance(result, dict):
+                continue
+            row_id = result.get("id")
+            if isinstance(row_id, str):
+                country_by_id[row_id] = _country_iso_from_cadis_result(result)
+        return [country_by_id.get(str(index)) for index in range(len(points))]
 
     return resolve
 

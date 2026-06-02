@@ -52,6 +52,9 @@ def test_write_timeline_scene_package_exports_json_assets_and_player(tmp_path: P
     assert '"type": "ambient-spark"' in scene_text
     assert '"source_point_count": 2' in scene_text
     assert '"spark_site_count": 1' in scene_text
+    scene = json.loads(scene_text)
+    assert "source" not in scene["effects"]["points"][0]
+    assert str(tmp_path) not in scene_text
     assert "timeline-scene_assets/basemap.png" in player_text
     assert "16 / 9" not in player_text
     assert "resizeCanvasElement" in player_text

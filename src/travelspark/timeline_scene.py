@@ -156,7 +156,6 @@ def _ambient_spark_effects(points, clusters, *, base_map: BaseMap, width: int, h
                 "x": x,
                 "y": y,
                 "count": cluster.count,
-                "source": str(cluster.members[0].path) if cluster.members else None,
                 "period_ms": period_ms,
                 "phase_ms": seed[1] * period_ms,
                 "loop_cycles": loop_cycles,

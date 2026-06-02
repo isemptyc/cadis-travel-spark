@@ -13,5 +13,5 @@ wheels/darwin-arm64/cadis_native_cgd-0.1.0-cp312-cp312-macosx_11_0_arm64.whl sha
 cadis-native-cgd==0.1.0 (linux-amd64, cp312)
 wheels/linux-amd64/cadis_native_cgd-0.1.0-cp312-cp312-manylinux_2_34_x86_64.whl sha256=3a60bcf90ab73a5e020850e81fde007c5987e875a6261747867ca0296fd2e263
 
-cadis-travel-spark==0.1.21
-cadis_travel_spark-0.1.21-py3-none-any.whl sha256=6d3add545c7e6d62718bb3c603fdea301d37331eecf39bafd87a95c4c628b7eb
+cadis-travel-spark==0.1.22
+cadis_travel_spark-0.1.22-py3-none-any.whl sha256=6d00dc981c391d27d48f846874a9fa334ac9cb4db4a4320622c4788aec62b2e3

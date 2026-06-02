@@ -12,3 +12,6 @@ build/
 *.gif
 *_report.json
 *_points.json
+timeline-scene.json
+timeline-scene.html
+timeline-scene_assets/
