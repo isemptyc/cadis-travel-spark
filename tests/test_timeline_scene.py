@@ -58,6 +58,9 @@ def test_write_timeline_scene_package_exports_json_assets_and_player(tmp_path: P
     assert "timeline-scene_assets/basemap.png" in player_text
     assert "16 / 9" not in player_text
     assert "resizeCanvasElement" in player_text
+    assert "<footer>" not in player_text
+    assert 'id="play"' not in player_text
+    assert 'id="scrub"' not in player_text
     assert report["timeline_scene_json"] == str(scene_json)
 
 

@@ -186,30 +186,17 @@ _PLAYER_HTML = """<!doctype html>
   <title>TravelSpark Player</title>
   <style>
     :root { color-scheme: dark; background: #05070b; color: #f6f1df; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
-    body { margin: 0; min-height: 100vh; display: grid; grid-template-rows: 1fr auto; background: #05070b; }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #05070b; }
     main { min-height: 0; display: grid; place-items: center; padding: 18px; }
     canvas { display: block; border-radius: 8px; box-shadow: 0 18px 80px rgba(0,0,0,.45); background: #07101b; }
-    footer { display: grid; grid-template-columns: auto 1fr auto; gap: 14px; align-items: center; padding: 12px 18px 18px; }
-    button { border: 1px solid rgba(246,241,223,.26); color: #f6f1df; background: rgba(255,255,255,.07); border-radius: 6px; padding: 8px 13px; font: inherit; cursor: pointer; }
-    button:hover { background: rgba(255,255,255,.12); }
-    input[type="range"] { width: 100%; accent-color: #e7c96a; }
-    .time { color: rgba(246,241,223,.72); font-variant-numeric: tabular-nums; min-width: 96px; text-align: right; }
   </style>
 </head>
 <body>
   <main><canvas id="stage"></canvas></main>
-  <footer>
-    <button id="play">Pause</button>
-    <input id="scrub" type="range" min="0" max="1000" value="0">
-    <div class="time" id="time">0.0s</div>
-  </footer>
   <script>
     const scene = __TRAVELSPARK_SCENE__;
     const canvas = document.getElementById("stage");
     const ctx = canvas.getContext("2d");
-    const playButton = document.getElementById("play");
-    const scrub = document.getElementById("scrub");
-    const time = document.getElementById("time");
     const width = scene.viewport.width;
     const height = scene.viewport.height;
     const duration = scene.timing.duration_ms;
@@ -220,7 +207,7 @@ _PLAYER_HTML = """<!doctype html>
     canvas.height = height;
     function resizeCanvasElement() {
       const maxWidth = Math.max(320, window.innerWidth - 36);
-      const maxHeight = Math.max(240, window.innerHeight - 92);
+      const maxHeight = Math.max(240, window.innerHeight - 36);
       const scale = Math.min(maxWidth / width, maxHeight / height);
       canvas.style.width = `${Math.max(1, Math.floor(width * scale))}px`;
       canvas.style.height = `${Math.max(1, Math.floor(height * scale))}px`;
@@ -228,9 +215,7 @@ _PLAYER_HTML = """<!doctype html>
     resizeCanvasElement();
     window.addEventListener("resize", resizeCanvasElement);
     const base = new Image();
-    let playing = true;
-    let startedAt = performance.now();
-    let pausedAt = 0;
+    const startedAt = performance.now();
 
     function rgba(rgb, alpha) {
       return `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${Math.max(0, Math.min(1, alpha))})`;
@@ -278,29 +263,11 @@ _PLAYER_HTML = """<!doctype html>
         ctx.fill();
       }
       ctx.restore();
-      scrub.value = String(Math.round((elapsed / duration) * 1000));
-      time.textContent = `${(elapsed / 1000).toFixed(1)}s`;
     }
     function tick(now) {
-      const elapsed = playing ? (now - startedAt) % duration : pausedAt;
-      drawFrame(elapsed);
+      drawFrame((now - startedAt) % duration);
       requestAnimationFrame(tick);
     }
-    playButton.addEventListener("click", () => {
-      playing = !playing;
-      if (playing) {
-        startedAt = performance.now() - pausedAt;
-        playButton.textContent = "Pause";
-      } else {
-        pausedAt = (performance.now() - startedAt) % duration;
-        playButton.textContent = "Play";
-      }
-    });
-    scrub.addEventListener("input", () => {
-      pausedAt = Number(scrub.value) / 1000 * duration;
-      startedAt = performance.now() - pausedAt;
-      drawFrame(pausedAt);
-    });
     base.onload = () => requestAnimationFrame(tick);
     base.src = scene.base_map.src;
   </script>
